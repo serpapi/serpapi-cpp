@@ -44,14 +44,15 @@ int main()
 
     // execute search 
     map<string, string> parameter;
-    parameter["c"] = "coffee";
+    parameter["q"] = "coffee";
     parameter["location"] = "Austin,TX";
+
     //  using namespace rapidjson;
     Document d = client.search(parameter);
     info("document loaded");
     info(d);
     info("check content");
-    return 0;
+
     assert(!d.HasMember("error"));
     assert(d.HasMember("search_metadata"));
     assert(d["search_metadata"]["status"] == "Success");
@@ -65,7 +66,8 @@ int main()
     info("search archive with id: " + id);
     client.searchArchive(id);
     assert(d["search_metadata"]["status"] == "Success");
-    info(" found.");
-    info(" test passed.");
+    info(" search found in archive.");
+    info(" test passed.\n");
     return 0;
 }
+

@@ -22,8 +22,8 @@ int main()
     const char* env_p = std::getenv("API_KEY");
     std::string apiKey(env_p);
     std::map<string, string> default_parameter;
-    default_parameter["api_key"] = apiKey;
     default_parameter["engine"] = "google";
+    default_parameter["api_key"] = apiKey;
     
     // using namespace serpapi;
     serpapi::Client client(default_parameter);
@@ -32,6 +32,7 @@ int main()
     std::map<string, string> parameter;
     parameter["q"] = "coffee";
     parameter["location"] = "Austin,TX";
+    
     //  using namespace rapidjson;
     rapidjson::Document d = client.search(parameter);
     info("document loaded");

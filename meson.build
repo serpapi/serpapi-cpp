@@ -18,8 +18,20 @@ libserpapi = static_library('serpapi',
                         ],
                         include_directories : incdirs)
 
-libserpapi_dep = declare_dependency(include_directories : incdirs, link_with : 
-libserpapi)
+libserpapi_dep = declare_dependency(include_directories : incdirs, link_with : libserpapi)
 
 subdir('oobt')
 subdir('example')
+
+# Configure the testing setup
+test_src = files('test/test_main.cpp', 'test/test_serpapi.cpp')
+test_deps = [
+#  dependency('libcurl'),
+  dependency('RapidJSON'),
+  libserpapi_dep,
+  dependency('gtest')
+]
+test_args = ['-Wno-missing-field-initializers','-g','-lgtest']
+
+e = executable('test_compiled', test_src, dependencies : test_deps)
+test('gtest', e, protocol : 'gtest')

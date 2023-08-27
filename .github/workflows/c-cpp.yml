@@ -15,9 +15,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: make install_linux
       run: make install_linux
-    - name: make reset
-      run: make reset
-    - name: make all
-      run: make all
+    - name: test
+      run: make setup build test
       env:
         API_KEY: ${{secrets.API_KEY}}
