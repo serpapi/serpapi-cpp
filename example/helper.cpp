@@ -11,7 +11,7 @@
 using namespace std;
 using namespace rapidjson;
 
-void info(string msg) {
+void info(const string& msg) {
     cout << "\nINFO: " << msg << endl;
 }
 

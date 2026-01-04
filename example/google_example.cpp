@@ -19,7 +19,11 @@ using namespace std;
 int main()
 {
     // initialize a client
-    const char* env_p = std::getenv("API_KEY");
+    const char* env_p = std::getenv("SERPAPI_KEY");
+    if (env_p == nullptr) {
+        cout << "SERPAPI_KEY not set, skipping example" << endl;
+        return 0;
+    }
     std::string apiKey(env_p);
     std::map<string, string> default_parameter;
     default_parameter["engine"] = "google";
@@ -41,7 +45,7 @@ int main()
     assert(d["search_metadata"]["id"].IsString());
 
     string id = d["search_metadata"]["id"].GetString();
-    client.searchArchive(id);
+    client.search_archive(id);
     assert(d["search_metadata"]["status"] == "Success");
     info(d);
 }

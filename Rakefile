@@ -23,6 +23,22 @@ task :test do
 	sh('ninja -C build test')
 end
 
+desc('run static analysis')
+task :lint do
+	rapidjson_inc = `pkg-config --variable=includedir rapidjson`.strip
+	sh("cppcheck src/*.cpp test/*.cpp oobt/*.cpp example/*.cpp -I src -I #{rapidjson_inc} --enable=warning,style,performance,portability --suppress='*:*/rapidjson/*' --suppress=missingIncludeSystem --suppress=unusedFunction --error-exitcode=1")
+end
+
+desc('generate coverage report')
+task :coverage do
+	sh('meson setup build --wipe -Db_coverage=true')
+	sh('ninja -C build')
+	sh('ninja -C build test')
+	# Use gcovr directly to focus on src/ and provide a cleaner report
+	sh('gcovr -r . --filter src/')
+	sh('gcovr -r . --filter src/ -s')
+end
+
 task readme: ['README.md.erb'] do
   `erb -T '-' README.md.erb > README.md`
 end
@@ -50,11 +66,11 @@ end
 namespace :install do
 	desc('install dependency on debian AARCH64 and x86 [tested]')
 	task :linux do
-		sh('sudo apt update -y && sudo apt install -f -y build-essential meson pkg-config curl cmake meson ninja-build libcurl4-openssl-dev rapidjson-dev googletest')
+		sh('sudo apt update -y && sudo apt install -f -y build-essential meson pkg-config curl cmake meson ninja-build libcurl4-openssl-dev rapidjson-dev googletest cppcheck gcovr lcov')
 	end
 
 	desc('install dependency on Apple M1 aarch64 [tested]')
 	task :apple do
-		sh('brew install meson pkg-config curl cmake meson ninja rapidjson googletest')
+		sh('brew install meson pkg-config curl cmake meson ninja rapidjson googletest cppcheck gcovr lcov')
 	end
 end

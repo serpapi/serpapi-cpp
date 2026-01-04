@@ -14,7 +14,7 @@
 using namespace rapidjson;
 using namespace std;
 
-void info(string msg) {
+void info(const string& msg) {
     cout << "\nINFO: " << msg;
 }
 
@@ -33,7 +33,11 @@ void info(const Document& document) {
 int main()
 {
     // initialize a client
-    const char* env_p = std::getenv("API_KEY");
+    const char* env_p = std::getenv("SERPAPI_KEY");
+    if (env_p == nullptr) {
+        cout << "SERPAPI_KEY not set, skipping OOBT" << endl;
+        return 0;
+    }
     std::string apiKey(env_p);
     std::map<string, string> default_parameter;
     default_parameter["api_key"] = apiKey;
@@ -64,7 +68,7 @@ int main()
     info("   id: " + id);
 
     info("search archive with id: " + id);
-    client.searchArchive(id);
+    client.search_archive(id);
     assert(d["search_metadata"]["status"] == "Success");
     info(" search found in archive.");
     info(" test passed.\n");

@@ -3,7 +3,10 @@
 #include "../src/serpapi.hpp"
 
 TEST(client, search) {
-    const char* env_p = std::getenv("API_KEY");
+    const char* env_p = std::getenv("SERPAPI_KEY");
+    if (env_p == nullptr) {
+        GTEST_SKIP() << "SERPAPI_KEY not set";
+    }
     std::string apiKey(env_p);
     std::map<string, string> default_parameter;
     default_parameter["api_key"] = apiKey;
@@ -39,7 +42,10 @@ TEST(client, location) {
 
 // fetch account information
 TEST(client, account) {
-    const char* env_p = std::getenv("API_KEY");
+    const char* env_p = std::getenv("SERPAPI_KEY");
+    if (env_p == nullptr) {
+        GTEST_SKIP() << "SERPAPI_KEY not set";
+    }
     std::string apiKey(env_p);
     std::map<string, string> default_parameter;
     default_parameter["api_key"] = apiKey;
@@ -52,8 +58,11 @@ TEST(client, account) {
     ASSERT_TRUE(d.HasMember("account_id"));
 }
 
-TEST(client, searchArchive) {
-    const char* env_p = std::getenv("API_KEY");
+TEST(client, search_archive) {
+    const char* env_p = std::getenv("SERPAPI_KEY");
+    if (env_p == nullptr) {
+        GTEST_SKIP() << "SERPAPI_KEY not set";
+    }
     std::string apiKey(env_p);
     std::map<string, string> default_parameter;
     default_parameter["api_key"] = apiKey;
@@ -77,7 +86,7 @@ TEST(client, searchArchive) {
     ASSERT_TRUE(d["search_metadata"]["id"].IsString());
 
     std::string id = d["search_metadata"]["id"].GetString();
-    rapidjson::Document d2 = client.searchArchive(id);
+    rapidjson::Document d2 = client.search_archive(id);
 
     ASSERT_FALSE(d2.HasMember("error"));
     ASSERT_TRUE(d2.HasMember("search_metadata"));
@@ -85,4 +94,24 @@ TEST(client, searchArchive) {
     std::string id_ = d2["search_metadata"]["id"].GetString();
     ASSERT_EQ(id_, id);
 
+}
+
+TEST(client, html) {
+    const char* env_p = std::getenv("SERPAPI_KEY");
+    if (env_p == nullptr) {
+        GTEST_SKIP() << "SERPAPI_KEY not set";
+    }
+    std::string apiKey(env_p);
+    std::map<string, string> default_parameter;
+    default_parameter["api_key"] = apiKey;
+    default_parameter["engine"] = "google";
+    
+    serpapi::Client client(default_parameter);
+
+    map<string, string> parameter;
+    parameter["q"] = "coffee";
+
+    std::string html = client.html(parameter);
+    ASSERT_FALSE(html.empty());
+    ASSERT_TRUE(html.find("coffee") != std::string::npos);
 }

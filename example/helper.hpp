@@ -6,6 +6,6 @@
 
 #include "rapidjson/document.h"
 
-void info(string msg); 
+void info(const std::string& msg); 
 void info(double msg);
 void info(const rapidjson::Document& document);

@@ -21,28 +21,28 @@ struct GetResponse;
 class Client {
 
     map<string, string> parameter;
-    CURL *curl;
     int timeout = 60;
     
     public:
+    explicit Client(const std::map<std::string, std::string>& parameter);
+    ~Client();
 
-    Client(map<string, string> parameter);
+    Document search(const std::map<std::string, std::string>& parameter = {});
 
-    Document search(map<string, string> parameter);
+    std::string html(const std::map<std::string, std::string>& parameter = {});
 
-    string html(map<string, string> parameter);
+    Document search_archive(const std::string& search_id);
 
-    Document searchArchive(string searchID);
+    Document account(const std::map<std::string, std::string>& parameter = {});
 
-    Document account(map<string, string> parameter);
+    Document location(const std::map<std::string, std::string>& parameter = {});
 
-    Document location(map<string, string> parameter);
+    private:
+    Document json(const std::string& uri, const std::map<std::string, std::string>& parameter);
 
-    Document json(string uri, map<string, string> parameter);
+    std::string url(CURL* curl, const std::string& output, const std::map<std::string, std::string>& parameter);
 
-    string url(string output, map<string, string> parameter);
-
-    GetResponse get(string uri, string output, map<string, string> parameter);
+    GetResponse get(const std::string& uri, const std::string& output, const std::map<std::string, std::string>& parameter);
 };
 }
 

@@ -9,7 +9,7 @@ namespace serpapi
 
 const static string HOST = "https://serpapi.com";
 const static string NAME = "serpapi-cpp";
-const static string VERSION = "1.0.0";
+const static string VERSION = "0.1.0";
 
 using namespace rapidjson;
 using namespace std;
@@ -19,103 +19,108 @@ struct GetResponse {
    string payload;
 };
 
-Client::Client(map<string, string> parameter)
+Client::Client(const map<string, string>& parameter)
 {
    this->parameter = parameter;
+}
+
+Client::~Client()
+{
 }
 
 /***
 * Get HTML search results
 */
-string Client::html(map<string, string> parameter)
+string Client::html(const map<string, string>& parameter)
 {
    GetResponse gr = Client::get("/search", "html", parameter);
    return gr.payload;
 }
 
-Document Client::search(map<string, string> parameter) 
+Document Client::search(const map<string, string>& parameter) 
 {
    return Client::json("/search", parameter);
 }
 
-Document Client::searchArchive(string id) 
+Document Client::search_archive(const string& id) 
 {
    return Client::json("/searches/" + id + ".json", map<string, string>());
 }
 
-Document Client::account(map<string, string> parameter) 
+Document Client::account(const map<string, string>& parameter) 
 {
    return Client::json("/account.json", parameter);
 }
 
-Document Client::location(map<string, string> parameter) 
+Document Client::location(const map<string, string>& parameter) 
 {
    return Client::json("/locations.json", parameter);
 }
 
-Document Client::json(string uri, map<string, string> parameter)
+Document Client::json(const string& uri, const map<string, string>& parameter)
 {
    GetResponse gr = get(uri, "json", parameter);
-   const char* json = gr.payload.c_str();
+   const char* json_payload = gr.payload.c_str();
    Document d;
-   d.Parse(json);
-   // if(gr.httpCode != 200 && d.HasMember("error")) {
-   //    Value entry(d);
-   //    entry.AddMember("httpCode", string(gr.httpCode), d.GetAllocator());
-   //    entry.AddMember("error", "serpapi.com did not returned any error message", d.GetAllocator());
-   // }
+   d.Parse(json_payload);
    return d;
 }
 
-string encodeUrl(map<string, string> parameter)
+string encodeUrl(CURL* curl, const map<string, string>& parameter)
 {
-   map<string, string> param(parameter);
    string s = "";
-   map<string,string>::iterator it;
-   for (it = param.begin(); it != param.end(); ++it)
+   map<string,string>::const_iterator it;
+   for (it = parameter.begin(); it != parameter.end(); ++it)
    {
       if (s != "")
       {
          s += "&";
       }
-      // encode each value in case of special character
-      s += it->first + "=" + it->second;
+      
+      char* escaped_key = curl_easy_escape(curl, it->first.c_str(), it->first.length());
+      char* escaped_value = curl_easy_escape(curl, it->second.c_str(), it->second.length());
+      
+      s += string(escaped_key) + "=" + string(escaped_value);
+      
+      curl_free(escaped_key);
+      curl_free(escaped_value);
    } 
    return s;
 }
 
-string Client::url(string output, map<string, string> parameter)
+string Client::url(CURL* curl, const string& output, const map<string, string>& parameter)
 {
    // encode parameter
-   string url = encodeUrl(parameter);
-   if(size(this->parameter) > 0) {
-      url += "&";
-      url += encodeUrl(this->parameter);
+   string url_str = encodeUrl(curl, parameter);
+   if(this->parameter.size() > 0) {
+      if (!url_str.empty()) url_str += "&";
+      url_str += encodeUrl(curl, this->parameter);
    } 
    // append output format
-   url += "&output=" + output;
+   url_str += "&output=" + output;
    // append source language
-   url += "&source="+NAME+":"+VERSION;
-   // cout << url << endl;
-   return url;
+   url_str += "&source="+NAME+":"+VERSION;
+   return url_str;
 }
 
-GetResponse Client::get(string uri, string output, map<string, string> parameter)
+GetResponse Client::get(const string& uri, const string& output, const map<string, string>& parameter)
 {
    curl_global_init(CURL_GLOBAL_DEFAULT);
-   curl = curl_easy_init();
-   const string url = HOST + uri + "?" + this->url(output, parameter);
-   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+   CURL* curl = curl_easy_init();
+   const string url_params = this->url(curl, output, parameter);
+   const string full_url = HOST + uri + "?" + url_params;
+   
+   curl_easy_setopt(curl, CURLOPT_URL, full_url.c_str());
    curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-   curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
+   curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)timeout);
    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 
    long httpCode(0);
-   unique_ptr<string> httpData(new string());
+   string httpData;
    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, callback);
-   curl_easy_setopt(curl, CURLOPT_WRITEDATA, httpData.get());
+   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &httpData);
 
    // execute search
    curl_easy_perform(curl);
@@ -125,7 +130,7 @@ GetResponse Client::get(string uri, string output, map<string, string> parameter
    curl_global_cleanup();
    GetResponse gr;
    gr.httpCode = httpCode;
-   gr.payload = *httpData.get();
+   gr.payload = httpData;
    return gr;
 }
 
