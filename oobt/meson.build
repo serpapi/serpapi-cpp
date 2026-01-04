@@ -1,6 +1,6 @@
 executable('oobt',
            'main.cpp',
-           install : true,
+           install : false,
            link_with : [libserpapi],
            include_directories : incdirs,
            dependencies : [

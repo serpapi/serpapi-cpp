@@ -2,7 +2,7 @@
 executable('google_example',
            'google_example.cpp',
            'helper.cpp',
-           install : true,
+           install : false,
            link_with : [libserpapi],
            include_directories : incdirs,
            dependencies : [

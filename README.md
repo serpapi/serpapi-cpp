@@ -484,10 +484,9 @@ of creating our own image for compilation on Linux.
 
 ## TODO
 
- - [ ] Add unit test
- - [ ] Customize classes
- - [ ] Package as a library 
- - [ ] Create OOBT test
+ - [x] Customize classes
+ - [x] Package as a library 
+ - [x] Create OOBT test
  - [ ] Publish library online
  - [ ] Add REPL.it example
  - [ ] Add integration documentation on serpapi.com

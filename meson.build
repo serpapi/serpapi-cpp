@@ -1,5 +1,5 @@
 project('serpapi', 'cpp',
-  version : '0.1.0',
+  version : '0.2.0',
   default_options : ['warning_level=3', 'cpp_std=c++17'])
 
 compiler = meson.get_compiler('cpp')
@@ -7,7 +7,7 @@ add_project_arguments(['-Wno-deprecated-declarations', '-funsigned-char'], langu
 
 incdirs = include_directories('src')
 
-libserpapi = static_library('serpapi', 
+libserpapi = library('serpapi', 
                         [
                           'src/serpapi.cpp', 
                           'src/callback.cpp'
@@ -16,7 +16,18 @@ libserpapi = static_library('serpapi',
                           dependency('libcurl'),
                           dependency('RapidJSON')
                         ],
-                        include_directories : incdirs)
+                        include_directories : incdirs,
+                        install : true)
+
+install_headers('src/serpapi.hpp', 'src/callback.hpp', subdir : 'serpapi')
+
+pkg = import('pkgconfig')
+pkg.generate(libserpapi,
+             description : 'C++ library for SerpApi',
+             version : meson.project_version(),
+             name : 'serpapi',
+             requires : ['libcurl', 'RapidJSON'],
+             subdirs : 'serpapi')
 
 libserpapi_dep = declare_dependency(include_directories : incdirs, link_with : libserpapi)
 

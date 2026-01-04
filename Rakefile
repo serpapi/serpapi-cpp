@@ -1,7 +1,10 @@
 # Automate serpapi C++ library
 # 
 
-task :default => [:clean, :setup, :build, :run]
+task default: [:clean, :setup, :build, :test, :lint, :coverage, :example, :oobt] do
+	puts "all good ready to release"
+	puts " next step: rake release"
+end
 
 task :clean do
 	sh('rm -rf build/')
@@ -49,6 +52,7 @@ task doc: [:readme]
 desc('run examples under build/example')
 task :example do
 	Dir.glob('build/example/*').each do |file|
+		next if file.end_with?('.p')
 		sh(file)
 	end
 end
