@@ -63,8 +63,35 @@ task :oobt do
 end
 
 desc('release current library')
-task :release do
-	puts("TODO implement release")
+task release: [:default] do
+  # Extract version from meson.build
+  meson_build = File.read('meson.build')
+  version = meson_build.match(/version\s*:\s*'([^']+)'/)[1]
+  tag = "v#{version}"
+
+  puts "Releasing #{tag}..."
+
+  # Check if tag already exists
+  if `git tag -l #{tag}`.strip == tag
+    puts "Tag #{tag} already exists. Skipping git tag."
+  else
+    # Ensure working directory is clean
+    if !`git status --porcelain`.strip.empty?
+      puts "Working directory is not clean. Please commit or stash changes."
+      exit 1
+    end
+
+    sh "git tag -a #{tag} -m 'Release #{tag}'"
+    puts "Created tag #{tag}."
+  end
+
+  # Create distribution package
+  sh "meson dist -C build"
+  
+  puts "\nRelease #{tag} completed successfully!"
+  puts "Next steps:"
+  puts "1. git push origin #{tag}"
+  puts "2. Upload build/meson-dist/serpapi-#{version}.tar.xz to GitHub Releases"
 end
 
 namespace :install do
