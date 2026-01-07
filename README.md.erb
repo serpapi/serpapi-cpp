@@ -27,8 +27,31 @@ SerpApi supports Google, Google Maps, Google Shopping, Baidu, Yandex, Yahoo, eBa
 
 C++ and meson are required.
 
-### Meson
+### Installation from Release
+
+Download the latest source package from the [GitHub Releases](https://github.com/serpapi/serpapi-C++/releases) page, then run:
+
+```bash
+tar xf serpapi-0.2.0.tar.xz
+cd serpapi-0.2.0
+meson setup build
+meson compile -C build
+sudo meson install -C build
+```
+
+### Meson Dependency
+
+Add the dependency to your `meson.build`:
+
 ```meson
+serpapi_dep = dependency('serpapi')
+```
+
+Or if you are using it as a subproject:
+
+```meson
+serpapi_proj = subproject('serpapi')
+serpapi_dep = serpapi_proj.get_variable('libserpapi_dep')
 ```
 
 [C++](https://C++gems.org/gems/serpapi/)
