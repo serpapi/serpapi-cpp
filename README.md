@@ -39,13 +39,14 @@ serpapi_proj = subproject('serpapi')
 serpapi_dep = serpapi_proj.get_variable('libserpapi_dep')
 ```
 
-[C++](https://C++gems.org/gems/serpapi/)
+[SerpApi C++](https://github.com/serpapi/serpapi-cpp)
 
 ## Simple Usage
 
 ```cpp
 #include <iostream>
 #include <map>
+#include <string>
 #include <serpapi.hpp>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
@@ -76,7 +77,7 @@ int main() {
 }
 ```
 
-This example runs a search for "coffee" on Google. It then returns the results as a RapidJSON Document. See the [playground](https://serpapi.com/playground) to generate your own code.
+This example runs a search for "coffee" on Google. It then returns the results as a RapidJSON Document. See the [playground](https://serpapi.com/playground) to generate your own code, or check out our [local examples](example/).
 
 ## Advanced Usage
 ### Search API
@@ -113,6 +114,8 @@ std::string raw_html = client.html(params);
 
  * [Full documentation on SerpApi.com](https://serpapi.com)
  * [Library Github page](https://github.com/serpapi/serpapi-cpp)
+ * [Google Search example](example/google_example.cpp)
+ * [Integration test (OOBT) example](oobt/main.cpp)
  * [API health status](https://serpapi.com/status)
 
 ### Location API
