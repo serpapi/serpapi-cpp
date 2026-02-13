@@ -1,77 +1,58 @@
-#include <cstdint>
+#include <cassert>
 #include <iostream>
-#include <memory>
-#include <string>
-#include <curl/curl.h>
+#include <map>
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
 #include <serpapi.hpp>
+#include <string>
 
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/pointer.h"
-
-using namespace rapidjson;
-using namespace std;
-
-void info(const string& msg) {
-    cout << "\nINFO: " << msg;
+void print_json(const rapidjson::Document &document) {
+  rapidjson::StringBuffer buffer;
+  rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+  document.Accept(writer);
+  std::cout << buffer.GetString() << std::endl;
 }
 
-void info(double msg) {
-    cout << "\nINFO: " << msg;
-}
-
-void info(const Document& document) {
-    StringBuffer buffer;
-    PrettyWriter<StringBuffer> writer(buffer);
-    document.Accept(writer);
-    cout << "\nINFO: " << buffer.GetString();
-}
-
-// RapidJSON parser documentation is available: https://rapidjson.org
-int main()
-{
-    // initialize a client
-    const char* env_p = std::getenv("SERPAPI_KEY");
-    if (env_p == nullptr) {
-        cout << "SERPAPI_KEY not set, skipping OOBT" << endl;
-        return 0;
-    }
-    std::string apiKey(env_p);
-    std::map<string, string> default_parameter;
-    default_parameter["api_key"] = apiKey;
-    default_parameter["engine"] = "google";
-    
-    // using namespace serpapi;
-    serpapi::Client client(default_parameter);
-
-    // execute search 
-    map<string, string> parameter;
-    parameter["q"] = "coffee";
-    parameter["location"] = "Austin,TX";
-
-    //  using namespace rapidjson;
-    Document d = client.search(parameter);
-    info("document loaded");
-    info(d);
-    info("check content");
-
-    assert(!d.HasMember("error"));
-    assert(d.HasMember("search_metadata"));
-    assert(d["search_metadata"]["status"] == "Success");
-    info(" search_metadata:");
-    string status = d["search_metadata"]["status"].GetString();
-    info("   status: " + status);
-    assert(d["search_metadata"]["id"].IsString());
-    string id = d["search_metadata"]["id"].GetString();
-    info("   id: " + id);
-
-    info("search archive with id: " + id);
-    client.search_archive(id);
-    assert(d["search_metadata"]["status"] == "Success");
-    info(" search found in archive.");
-    info(" test passed.\n");
+int main() {
+  const char *env_p = std::getenv("SERPAPI_KEY");
+  if (env_p == nullptr) {
+    std::cout << "SERPAPI_KEY not set, skipping OOBT" << std::endl;
     return 0;
-}
+  }
 
+  std::string apiKey(env_p);
+  std::map<std::string, std::string> default_parameter;
+  default_parameter["api_key"] = apiKey;
+  default_parameter["engine"] = "google";
+
+  serpapi::Client client(default_parameter);
+
+  std::map<std::string, std::string> parameter;
+  parameter["q"] = "coffee";
+  parameter["location"] = "Austin,TX";
+
+  rapidjson::Document d = client.search(parameter);
+  std::cout << "Document loaded" << std::endl;
+  print_json(d);
+
+  assert(!d.HasMember("error"));
+  assert(d.HasMember("search_metadata"));
+  assert(d["search_metadata"]["status"] == "Success");
+
+  std::string status = d["search_metadata"]["status"].GetString();
+  std::cout << "Status: " << status << std::endl;
+
+  assert(d["search_metadata"]["id"].IsString());
+  std::string id = d["search_metadata"]["id"].GetString();
+  std::cout << "Search ID: " << id << std::endl;
+
+  std::cout << "Retrieving from archive..." << id << std::endl;
+  rapidjson::Document d2 = client.search_archive(id);
+
+  assert(d2["search_metadata"]["status"] == "Success");
+  std::cout << "Successfully retrieved from archive." << std::endl;
+  std::cout << "Test passed." << std::endl;
+
+  return 0;
+}
