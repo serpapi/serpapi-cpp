@@ -10,9 +10,23 @@ task :clean do
 	sh('rm -rf build/')
 end
 
+def pkg_config_env
+  pkg_paths = [
+     "/opt/homebrew/lib/pkgconfig",
+     "/opt/homebrew/opt/rapidjson/lib/pkgconfig",
+     "/opt/homebrew/opt/libcurl/lib/pkgconfig"
+  ].select { |path| File.directory?(path) }
+
+  # Append existing PKG_CONFIG_PATH
+  existing_path = ENV['PKG_CONFIG_PATH']
+  pkg_paths << existing_path if existing_path && !existing_path.empty?
+
+  "PKG_CONFIG_PATH='#{pkg_paths.join(':')}'"
+end
+
 desc('initialize meson build')
 task :setup do
-	sh('meson setup --wipe build')
+  sh("#{pkg_config_env} meson setup --wipe build")
 end
 
 desc('build library')
@@ -28,13 +42,13 @@ end
 
 desc('run static analysis')
 task :lint do
-	rapidjson_inc = `pkg-config --variable=includedir rapidjson`.strip
+	rapidjson_inc = `#{pkg_config_env} pkg-config --variable=includedir rapidjson`.strip
 	sh("cppcheck src/*.cpp test/*.cpp oobt/*.cpp example/*.cpp -I src -I #{rapidjson_inc} --enable=warning,style,performance,portability --suppress='*:*/rapidjson/*' --suppress=missingIncludeSystem --suppress=unusedFunction --error-exitcode=1")
 end
 
 desc('generate coverage report')
 task :coverage do
-	sh('meson setup build --wipe -Db_coverage=true')
+	sh("#{pkg_config_env} meson setup build --wipe -Db_coverage=true")
 	sh('ninja -C build')
 	sh('ninja -C build test')
 	# Use gcovr directly to focus on src/ and provide a cleaner report
@@ -67,7 +81,7 @@ task release: [:default] do
   # Extract version from meson.build
   meson_build = File.read('meson.build')
   version = meson_build.match(/version\s*:\s*'([^']+)'/)[1]
-  tag = "v#{version}"
+  tag = "#{version}"
 
   puts "Releasing #{tag}..."
 

@@ -1,11 +1,11 @@
-#include <cstdint>
-#include <iostream>
-#include <memory>
+#ifndef SERPAPI_CALLBACK_HPP
+#define SERPAPI_CALLBACK_HPP
+
+#include <cstddef>
 #include <string>
 
-using namespace std;
-
-namespace serpapi
-{
- size_t callback(const char* in, size_t size, size_t num, string* out);
+namespace serpapi {
+size_t callback(const char *in, size_t size, size_t num, std::string *out);
 }
+
+#endif

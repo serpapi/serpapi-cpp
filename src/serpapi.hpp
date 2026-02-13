@@ -4,46 +4,50 @@
 #ifndef SERPAPI
 #define SERPAPI
 
-#include <iostream>
+#include "rapidjson/document.h"
+#include <curl/curl.h>
 #include <map>
 #include <string>
-#include <curl/curl.h>
-#include "./callback.hpp"
-#include "rapidjson/document.h"
 
-namespace serpapi 
-{
-using namespace rapidjson;
-using namespace std;
+namespace serpapi {
 
-struct GetResponse;
+struct GetResponse {
+  int httpCode;
+  std::string payload;
+};
 
 class Client {
 
-    map<string, string> parameter;
-    int timeout = 60;
-    
-    public:
-    explicit Client(const std::map<std::string, std::string>& parameter);
-    ~Client();
+  std::map<std::string, std::string> parameter;
+  int timeout = 60;
 
-    Document search(const std::map<std::string, std::string>& parameter = {});
+public:
+  explicit Client(const std::map<std::string, std::string> &parameter);
+  ~Client();
 
-    std::string html(const std::map<std::string, std::string>& parameter = {});
+  rapidjson::Document
+  search(const std::map<std::string, std::string> &parameter = {});
 
-    Document search_archive(const std::string& search_id);
+  std::string html(const std::map<std::string, std::string> &parameter = {});
 
-    Document account(const std::map<std::string, std::string>& parameter = {});
+  rapidjson::Document search_archive(const std::string &search_id);
 
-    Document location(const std::map<std::string, std::string>& parameter = {});
+  rapidjson::Document
+  account(const std::map<std::string, std::string> &parameter = {});
 
-    private:
-    Document json(const std::string& uri, const std::map<std::string, std::string>& parameter);
+  rapidjson::Document
+  location(const std::map<std::string, std::string> &parameter = {});
 
-    std::string url(CURL* curl, const std::string& output, const std::map<std::string, std::string>& parameter);
+private:
+  rapidjson::Document json(const std::string &uri,
+                           const std::map<std::string, std::string> &parameter);
 
-    GetResponse get(const std::string& uri, const std::string& output, const std::map<std::string, std::string>& parameter);
+  std::string url(CURL *curl, const std::string &output,
+                  const std::map<std::string, std::string> &parameter);
+
+  GetResponse get(const std::string &uri, const std::string &output,
+                  const std::map<std::string, std::string> &parameter);
 };
-}
+} // namespace serpapi
 
 #endif
