@@ -9,7 +9,7 @@ namespace serpapi {
 
 const static std::string HOST = "https://serpapi.com";
 const static std::string NAME = "serpapi-cpp";
-const static std::string VERSION = "0.2.0";
+const static std::string VERSION = "0.3.0";
 
 using namespace rapidjson;
 using namespace std;

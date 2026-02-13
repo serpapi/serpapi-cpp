@@ -1,5 +1,5 @@
 project('serpapi', 'cpp',
-  version : '0.2.0',
+  version : '0.3.0',
   default_options : ['warning_level=3', 'cpp_std=c++17'])
 
 compiler = meson.get_compiler('cpp')

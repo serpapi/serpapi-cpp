@@ -17,8 +17,8 @@ C++17 and meson are required.
 Download the latest source package from the [GitHub Releases](https://github.com/serpapi/serpapi-cpp/releases) page, then run:
 
 ```bash
-tar xf serpapi-0.2.0.tar.xz
-cd serpapi-0.2.0
+tar xf serpapi-0.3.0.tar.xz
+cd serpapi-0.3.0
 meson setup build
 meson compile -C build
 sudo meson install -C build
@@ -191,6 +191,7 @@ C++ versions validated by Github Actions:
  - C++20
 
 ## Change logs
+ * [2026-02-12] 0.3.0 Refactor and cleanup.
  * [2026-01-06] 0.2.0 Release package with meson build system.
  * [2023-02-20] 0.1.0 Full API support
 
