@@ -1,7 +1,7 @@
 <div align="center">
 <h1 align="center">SerpApi C++ Library</h1>
 
-[![SerpApi C++](https://github.com/serpapi/serpapi-cpp/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/serpapi/serpapi-cpp/actions/workflows/c-cpp.yml)
+[![SerpApi C++](https://github.com/serpapi/serpapi-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/serpapi/serpapi-cpp/actions/workflows/ci.yml)
 </div>
 
 Integrate search data into your C++ application. This library is the official wrapper for SerpApi (https://serpapi.com).
