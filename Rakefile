@@ -79,9 +79,8 @@ end
 desc('release current library')
 task release: [:default] do
   # Extract version from meson.build
-  meson_build = File.read('meson.build')
-  version = meson_build.match(/version\s*:\s*'([^']+)'/)[1]
-  tag = "#{version}"
+  version = File.read('meson.build').match(/version\s*:\s*'([^']+)'/)[1]
+  tag = "v#{version}"
 
   puts "Releasing #{tag}..."
 
@@ -90,9 +89,8 @@ task release: [:default] do
     puts "Tag #{tag} already exists. Skipping git tag."
   else
     # Ensure working directory is clean
-    if !`git status --porcelain`.strip.empty?
-      puts "Working directory is not clean. Please commit or stash changes."
-      exit 1
+    unless `git status --porcelain`.strip.empty?
+      abort "Working directory is not clean. Please commit or stash changes."
     end
 
     sh "git tag -a #{tag} -m 'Release #{tag}'"
@@ -100,7 +98,8 @@ task release: [:default] do
   end
 
   # Create distribution package
-  sh "meson dist -C build"
+  # meson dist performs a build and test in a temporary directory, so it needs the env
+  sh "#{pkg_config_env} meson dist -C build"
   
   puts "\nRelease #{tag} completed successfully!"
   puts "Next steps:"
