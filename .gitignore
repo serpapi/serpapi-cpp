@@ -36,3 +36,4 @@ build
 
 # Editor
 .vscode
+.cache
