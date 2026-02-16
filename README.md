@@ -4,7 +4,7 @@
 [![SerpApi C++](https://github.com/serpapi/serpapi-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/serpapi/serpapi-cpp/actions/workflows/ci.yml)
 </div>
 
-Integrate search data into your C++ application. This library is the official wrapper for SerpApi (https://serpapi.com).
+Integrate search data into your C++ application. This library is the official wrapper for [SerpApi](https://serpapi.com).
 
 SerpApi supports Google, Google Maps, Google Shopping, Baidu, Yandex, Yahoo, eBay, App Stores, and more.
 
