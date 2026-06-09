@@ -16,3 +16,4 @@ size_t callback(const char* in, size_t size, size_t num, std::string* out) {
     return 0;
   }
 }
+} // namespace serpapi
