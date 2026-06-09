@@ -25,6 +25,8 @@ public:
   explicit Client(const std::map<std::string, std::string> &parameter);
   ~Client();
 
+  void setTimeout(int seconds) { timeout = seconds; }
+
   rapidjson::Document
   search(const std::map<std::string, std::string> &parameter = {});
 
