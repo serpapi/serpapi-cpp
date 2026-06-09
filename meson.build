@@ -35,12 +35,13 @@ subdir('oobt')
 subdir('example')
 
 # Configure the testing setup
-test_src = files('test/test_main.cpp', 'test/test_serpapi.cpp')
+test_src = files('test/test_main.cpp', 'test/test_serpapi.cpp', 'test/test_unit.cpp')
 test_deps = [
 #  dependency('libcurl'),
   dependency('RapidJSON'),
   libserpapi_dep,
-  dependency('gtest')
+  dependency('gtest'),
+  dependency('threads')
 ]
 test_args = ['-Wno-missing-field-initializers','-g','-lgtest']
 
