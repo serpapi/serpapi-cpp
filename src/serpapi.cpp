@@ -4,6 +4,8 @@
 
 #include "callback.hpp"
 #include <serpapi.hpp>
+#include <mutex>
+#include <sstream>
 
 namespace serpapi {
 
@@ -11,94 +13,96 @@ const static std::string HOST = "https://serpapi.com";
 const static std::string NAME = "serpapi-cpp";
 const static std::string VERSION = "0.3.0";
 
-using namespace rapidjson;
-using namespace std;
+static std::once_flag curl_init_flag;
 
-Client::Client(const map<string, string> &parameter) {
+Client::Client(const std::map<std::string, std::string> &parameter) {
   this->parameter = parameter;
 }
 
 Client::~Client() {}
 
-/***
- * Get HTML search results
- */
-string Client::html(const map<string, string> &parameter) {
+std::string Client::html(const std::map<std::string, std::string> &parameter) {
   GetResponse gr = Client::get("/search", "html", parameter);
   return gr.payload;
 }
 
-Document Client::search(const map<string, string> &parameter) {
+rapidjson::Document Client::search(const std::map<std::string, std::string> &parameter) {
   return Client::json("/search", parameter);
 }
 
-Document Client::search_archive(const string &id) {
-  return Client::json("/searches/" + id + ".json", map<string, string>());
+rapidjson::Document Client::search_archive(const std::string &id) {
+  return Client::json("/searches/" + id + ".json", std::map<std::string, std::string>());
 }
 
-Document Client::account(const map<string, string> &parameter) {
+rapidjson::Document Client::account(const std::map<std::string, std::string> &parameter) {
   return Client::json("/account.json", parameter);
 }
 
-Document Client::location(const map<string, string> &parameter) {
+rapidjson::Document Client::location(const std::map<std::string, std::string> &parameter) {
   return Client::json("/locations.json", parameter);
 }
 
-Document Client::json(const string &uri, const map<string, string> &parameter) {
+rapidjson::Document Client::json(const std::string &uri, const std::map<std::string, std::string> &parameter) {
   GetResponse gr = get(uri, "json", parameter);
-  const char *json_payload = gr.payload.c_str();
-  Document d;
-  d.Parse(json_payload);
+  rapidjson::Document d;
+  d.Parse(gr.payload.c_str());
+  if (d.HasParseError()) {
+    d.SetObject();
+    d.AddMember("error", "JSON parse error", d.GetAllocator());
+  }
   return d;
 }
 
-string encodeUrl(CURL *curl, const map<string, string> &parameter) {
-  string s = "";
-  map<string, string>::const_iterator it;
-  for (it = parameter.begin(); it != parameter.end(); ++it) {
-    if (s != "") {
-      s += "&";
+std::string encodeUrl(CURL *curl, const std::map<std::string, std::string> &parameter) {
+  std::ostringstream oss;
+  bool first = true;
+
+  for (const auto& entry : parameter) {
+    char *escaped_key = curl_easy_escape(curl, entry.first.c_str(), entry.first.length());
+    char *escaped_value = curl_easy_escape(curl, entry.second.c_str(), entry.second.length());
+
+    if (!escaped_key || !escaped_value) {
+      if (escaped_key) curl_free(escaped_key);
+      if (escaped_value) curl_free(escaped_value);
+      return "";
     }
 
-    char *escaped_key =
-        curl_easy_escape(curl, it->first.c_str(), it->first.length());
-    char *escaped_value =
-        curl_easy_escape(curl, it->second.c_str(), it->second.length());
-
-    s += string(escaped_key) + "=" + string(escaped_value);
+    if (!first) oss << "&";
+    oss << escaped_key << "=" << escaped_value;
+    first = false;
 
     curl_free(escaped_key);
     curl_free(escaped_value);
   }
-  return s;
+  return oss.str();
 }
 
-string Client::url(CURL *curl, const string &output,
-                   const map<string, string> &parameter) {
-  // encode parameter
-  string url_str = encodeUrl(curl, parameter);
+std::string Client::url(CURL *curl, const std::string &output,
+                        const std::map<std::string, std::string> &parameter) {
+  std::string url_str = encodeUrl(curl, parameter);
   if (this->parameter.size() > 0) {
-    if (!url_str.empty())
-      url_str += "&";
+    if (!url_str.empty()) url_str += "&";
     url_str += encodeUrl(curl, this->parameter);
   }
-  // append output format
   url_str += "&output=" + output;
-  // append source language
   url_str += "&source=" + NAME + ":" + VERSION;
   return url_str;
 }
 
-GetResponse Client::get(const string &uri, const string &output,
-                        const map<string, string> &parameter) {
-  static bool initialized = false;
-  if (!initialized) {
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    initialized = true;
-  }
+GetResponse Client::get(const std::string &uri, const std::string &output,
+                        const std::map<std::string, std::string> &parameter) {
+  std::call_once(curl_init_flag, []() { curl_global_init(CURL_GLOBAL_DEFAULT); });
+
   CURL *curl = curl_easy_init();
-  const string url_params = this->url(curl, output, parameter);
-  const string full_url = HOST + uri + "?" + url_params;
+  if (!curl) {
+    GetResponse gr;
+    gr.httpCode = 0;
+    gr.payload = "CURL initialization failed";
+    return gr;
+  }
+
+  const std::string url_params = this->url(curl, output, parameter);
+  const std::string full_url = HOST + uri + "?" + url_params;
 
   curl_easy_setopt(curl, CURLOPT_URL, full_url.c_str());
   curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
@@ -108,12 +112,19 @@ GetResponse Client::get(const string &uri, const string &output,
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 
   long httpCode(0);
-  string httpData;
+  std::string httpData;
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, callback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &httpData);
 
-  // execute search
-  curl_easy_perform(curl);
+  CURLcode res = curl_easy_perform(curl);
+  if (res != CURLE_OK) {
+    curl_easy_cleanup(curl);
+    GetResponse gr;
+    gr.httpCode = 0;
+    gr.payload = std::string("CURL error: ") + curl_easy_strerror(res);
+    return gr;
+  }
+
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
   curl_easy_cleanup(curl);
 

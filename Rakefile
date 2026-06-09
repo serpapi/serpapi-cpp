@@ -21,7 +21,8 @@ def pkg_config_env
   existing_path = ENV['PKG_CONFIG_PATH']
   pkg_paths << existing_path if existing_path && !existing_path.empty?
 
-  "PKG_CONFIG_PATH='#{pkg_paths.join(':')}'"
+  require 'shellwords'
+  "PKG_CONFIG_PATH=#{Shellwords.escape(pkg_paths.join(':'))}"
 end
 
 desc('initialize meson build')
@@ -78,30 +79,34 @@ end
 
 desc('release current library')
 task release: [:default] do
+  require 'shellwords'
+
   # Extract version from meson.build
-  meson_build = File.read('meson.build')
-  version = meson_build.match(/version\s*:\s*'([^']+)'/)[1]
-  tag = "#{version}"
+  version_match = File.read('meson.build').match(/version\s*:\s*'([^']+)'/)
+  abort "Unable to extract version from meson.build. Check version format." unless version_match
+
+  version = version_match[1]
+  tag = "v#{version}"
 
   puts "Releasing #{tag}..."
 
   # Check if tag already exists
-  if `git tag -l #{tag}`.strip == tag
+  if `git tag -l #{Shellwords.escape(tag)}`.strip == tag
     puts "Tag #{tag} already exists. Skipping git tag."
   else
     # Ensure working directory is clean
-    if !`git status --porcelain`.strip.empty?
-      puts "Working directory is not clean. Please commit or stash changes."
-      exit 1
+    unless `git status --porcelain`.strip.empty?
+      abort "Working directory is not clean. Please commit or stash changes."
     end
 
-    sh "git tag -a #{tag} -m 'Release #{tag}'"
+    sh "git tag -a #{Shellwords.escape(tag)} -m #{Shellwords.escape("Release #{tag}")}"
     puts "Created tag #{tag}."
   end
 
   # Create distribution package
-  sh "meson dist -C build"
-  
+  # meson dist performs a build and test in a temporary directory, so it needs the env
+  sh "#{pkg_config_env} meson dist -C build"
+
   puts "\nRelease #{tag} completed successfully!"
   puts "Next steps:"
   puts "1. git push origin #{tag}"
