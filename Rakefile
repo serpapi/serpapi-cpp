@@ -27,7 +27,7 @@ end
 
 desc('initialize meson build')
 task :setup do
-  sh("#{pkg_config_env} meson setup --wipe build")
+  sh("#{pkg_config_env} meson setup --wipe build -Dtests=true")
 end
 
 desc('build library')
@@ -49,7 +49,7 @@ end
 
 desc('generate coverage report')
 task :coverage do
-	sh("#{pkg_config_env} meson setup build --wipe -Db_coverage=true")
+	sh("#{pkg_config_env} meson setup build --wipe -Db_coverage=true -Dtests=true")
 	sh('ninja -C build')
 	sh('ninja -C build test')
 	# Use gcovr directly to focus on src/ and provide a cleaner report

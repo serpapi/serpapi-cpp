@@ -34,6 +34,8 @@ meson compile -C build
 sudo meson install -C build
 ```
 
+Tests are disabled by default for release builds. To build and run tests with Meson, install GoogleTest and configure with `-Dtests=true`.
+
 ### Meson Dependency
 
 Add the dependency to your `meson.build`:
