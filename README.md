@@ -17,7 +17,7 @@ C++17 and meson are required.
 Download and extract the latest release:
 
 ```bash
-curl -sL https://github.com/serpapi/serpapi-cpp/releases/download/v0.4.0/serpapi-0.4.0.tar.xz | tar xJ
+curl -sL https://github.com/serpapi/serpapi-cpp/archive/refs/tags/v0.4.0.tar.gz | tar xz
 cd serpapi-0.4.0
 meson setup build
 meson compile -C build
