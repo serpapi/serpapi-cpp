@@ -11,7 +11,7 @@ namespace serpapi {
 
 const static std::string HOST = "https://serpapi.com";
 const static std::string NAME = "serpapi-cpp";
-const static std::string VERSION = "0.4.0";
+const static std::string VERSION = "0.4.1";
 
 static std::once_flag curl_init_flag;
 

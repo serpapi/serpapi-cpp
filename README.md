@@ -27,8 +27,8 @@ sudo apt update && sudo apt install -y rapidjson-dev
 Download and extract the latest release:
 
 ```bash
-curl -sL https://github.com/serpapi/serpapi-cpp/archive/refs/tags/v0.4.0.tar.gz | tar xz
-cd serpapi-0.4.0
+curl -sL https://github.com/serpapi/serpapi-cpp/archive/refs/tags/v0.4.1.tar.gz | tar xz
+cd serpapi-0.4.1
 meson setup build
 meson compile -C build
 sudo meson install -C build
@@ -206,6 +206,7 @@ C++ versions validated by Github Actions:
  - C++20
 
 ## Change logs
+ * [2026-06-26] 0.4.1 Exclude test dependencies from release build.
  * [2026-06-08] 0.4.0 Add unit tests and improve error handling.
  * [2026-02-12] 0.3.0 Refactor and cleanup.
  * [2026-01-06] 0.2.0 Release package with meson build system.
