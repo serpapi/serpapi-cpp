@@ -267,7 +267,7 @@ rake test
 env SERPAPI_KEY=SERPAPI_KEY docker run --rm -it -e SERPAPI_KEY --workdir /tmp/serpapi -v $PWD:/tmp/serpapi conanio/gcc10 make install_linux reset all
 ```
 
-## Get started.
+## Development
  - Set an environment SERPAPI_KEY=<secret>
  - Install dependencies:
     - `rake install:apple`
@@ -276,7 +276,7 @@ env SERPAPI_KEY=SERPAPI_KEY docker run --rm -it -e SERPAPI_KEY --workdir /tmp/se
  - Build: `rake build`
  - Run examples: `rake example`
 
- # Documentation
-https://formulae.brew.sh/formula/googletest
-https://rapidjson.org/md_doc_tutorial.html
+## References
+- https://formulae.brew.sh/formula/googletest
+- https://rapidjson.org/md_doc_tutorial.html
 
