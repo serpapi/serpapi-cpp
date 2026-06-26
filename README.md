@@ -12,6 +12,16 @@ SerpApi supports Google, Google Maps, Google Shopping, Baidu, Yandex, Yahoo, eBa
 
 C++17 and meson are required.
 
+Install RapidJSON before configuring the build:
+
+```bash
+# macOS
+brew install rapidjson
+
+# Debian/Ubuntu Linux
+sudo apt update && sudo apt install -y rapidjson-dev
+```
+
 ### Installation from Release
 
 Download and extract the latest release:
