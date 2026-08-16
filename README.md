@@ -27,8 +27,8 @@ sudo apt update && sudo apt install -y rapidjson-dev
 Download and extract the latest release:
 
 ```bash
-curl -sL https://github.com/serpapi/serpapi-cpp/archive/refs/tags/v0.4.1.tar.gz | tar xz
-cd serpapi-0.4.1
+curl -sL https://github.com/serpapi/serpapi-cpp/archive/refs/tags/v0.5.0.tar.gz | tar xz
+cd serpapi-0.5.0
 meson setup build
 meson compile -C build
 sudo meson install -C build
@@ -118,6 +118,9 @@ rapidjson::Document results = client.search(params);
 
 // raw search engine html as a String
 std::string raw_html = client.html(params);
+
+// raw search engine results as Markdown String
+std::string raw_markdown = client.markdown(params);
 ```
 
 [Google search documentation](https://serpapi.com/search-api).
@@ -206,6 +209,7 @@ C++ versions validated by Github Actions:
  - C++20
 
 ## Change logs
+ * [2026-08-16] 0.5.0 Add markdown() support via the output=md format.
  * [2026-06-26] 0.4.1 Exclude test dependencies from release build.
  * [2026-06-08] 0.4.0 Add unit tests and improve error handling.
  * [2026-02-12] 0.3.0 Refactor and cleanup.
@@ -226,6 +230,21 @@ C++ versions validated by Github Actions:
  - 100% tests passing: `rake test`
  - 100% code coverage: `rake coverage`
 
+### Latest coverage report
+
+Generated with `rake coverage` (requires `SERPAPI_KEY` set to exercise the live API tests):
+
+| File              | Lines | Exec | Cover |
+|-------------------|------:|-----:|------:|
+| src/callback.cpp  |    11 |    8 |   72% |
+| src/serpapi.cpp   |    97 |   76 |   78% |
+| src/serpapi.hpp   |     1 |    1 |  100% |
+| **TOTAL**         | **109** | **85** | **78%** |
+
+ - lines: 78.0% (85/109)
+ - functions: 100.0% (15/15)
+ - branches: 45.9% (79/172)
+
 ## Design : UML diagram
 ### Class diagram
 ```mermaid
@@ -238,6 +257,7 @@ classDiagram
     parameter map
     search() Document
     html() String
+    markdown() String
     location() Document
     search_archive() Document
     account() Document

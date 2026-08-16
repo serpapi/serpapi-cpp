@@ -1,0 +1,43 @@
+# Doxyfile for serpapi-cpp
+#
+# Generate documentation with:
+#   doxygen Doxyfile
+# Output is written to docs/html (open docs/html/index.html).
+#
+# This file only lists settings that differ from Doxygen's defaults;
+# any option not listed here uses the standard Doxygen default value.
+
+#---------------------------------------------------------------------------
+# Project
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "SerpApi C++"
+PROJECT_BRIEF          = "Official C++ client library for SerpApi"
+PROJECT_NUMBER         = 0.5.0
+OUTPUT_DIRECTORY       = docs
+
+#---------------------------------------------------------------------------
+# Build
+#---------------------------------------------------------------------------
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+RECURSIVE              = YES
+
+#---------------------------------------------------------------------------
+# Input
+#---------------------------------------------------------------------------
+INPUT                  = src README.md
+FILE_PATTERNS          = *.cpp *.hpp
+USE_MDFILE_AS_MAINPAGE = README.md
+
+#---------------------------------------------------------------------------
+# Output formats
+#---------------------------------------------------------------------------
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+
+#---------------------------------------------------------------------------
+# Preprocessing / diagrams
+#---------------------------------------------------------------------------
+HAVE_DOT                = NO
+CLASS_DIAGRAMS          = YES
