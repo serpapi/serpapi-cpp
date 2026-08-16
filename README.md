@@ -230,6 +230,21 @@ C++ versions validated by Github Actions:
  - 100% tests passing: `rake test`
  - 100% code coverage: `rake coverage`
 
+### Latest coverage report
+
+Generated with `rake coverage` (requires `SERPAPI_KEY` set to exercise the live API tests):
+
+| File              | Lines | Exec | Cover |
+|-------------------|------:|-----:|------:|
+| src/callback.cpp  |    11 |    8 |   72% |
+| src/serpapi.cpp   |    97 |   76 |   78% |
+| src/serpapi.hpp   |     1 |    1 |  100% |
+| **TOTAL**         | **109** | **85** | **78%** |
+
+ - lines: 78.0% (85/109)
+ - functions: 100.0% (15/15)
+ - branches: 45.9% (79/172)
+
 ## Design : UML diagram
 ### Class diagram
 ```mermaid
