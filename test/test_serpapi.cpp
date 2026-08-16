@@ -116,3 +116,23 @@ TEST(client, html) {
   ASSERT_FALSE(html.empty());
   ASSERT_TRUE(html.find("coffee") != std::string::npos);
 }
+
+TEST(client, markdown) {
+  const char *env_p = std::getenv("SERPAPI_KEY");
+  if (env_p == nullptr) {
+    GTEST_SKIP() << "SERPAPI_KEY not set";
+  }
+  std::string apiKey(env_p);
+  std::map<string, string> default_parameter;
+  default_parameter["api_key"] = apiKey;
+  default_parameter["engine"] = "google";
+
+  serpapi::Client client(default_parameter);
+
+  map<string, string> parameter;
+  parameter["q"] = "coffee";
+
+  std::string markdown = client.markdown(parameter);
+  ASSERT_FALSE(markdown.empty());
+  ASSERT_TRUE(markdown.find("coffee") != std::string::npos);
+}

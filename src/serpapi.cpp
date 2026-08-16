@@ -11,37 +11,83 @@ namespace serpapi {
 
 const static std::string HOST = "https://serpapi.com";
 const static std::string NAME = "serpapi-cpp";
-const static std::string VERSION = "0.4.0";
+const static std::string VERSION = "0.5.0";
 
 static std::once_flag curl_init_flag;
 
+/**
+ * @brief Constructs a client with default parameters merged into every request.
+ * @param parameter Default parameters (e.g. api_key, engine) applied to all calls.
+ */
 Client::Client(const std::map<std::string, std::string> &parameter) {
   this->parameter = parameter;
 }
 
 Client::~Client() {}
 
+/**
+ * @brief Runs a search and returns the raw search engine result page as HTML.
+ * @param parameter Search parameters (e.g. q, location) merged with the client defaults.
+ * @return Raw HTML response body.
+ */
 std::string Client::html(const std::map<std::string, std::string> &parameter) {
   GetResponse gr = Client::get("/search", "html", parameter);
   return gr.payload;
 }
 
+/**
+ * @brief Runs a search and returns the raw search engine result page as Markdown.
+ * @param parameter Search parameters (e.g. q, location) merged with the client defaults.
+ * @return Raw Markdown response body.
+ */
+std::string Client::markdown(const std::map<std::string, std::string> &parameter) {
+  GetResponse gr = Client::get("/search", "md", parameter);
+  return gr.payload;
+}
+
+/**
+ * @brief Runs a search and returns the parsed/structured results as JSON.
+ * @param parameter Search parameters (e.g. q, location) merged with the client defaults.
+ * @return Parsed JSON response as a rapidjson::Document.
+ */
 rapidjson::Document Client::search(const std::map<std::string, std::string> &parameter) {
   return Client::json("/search", parameter);
 }
 
+/**
+ * @brief Retrieves a previously run search from the search archive.
+ * @param id Search id, as returned in search_metadata.id from a prior search().
+ * @return Parsed JSON response as a rapidjson::Document.
+ */
 rapidjson::Document Client::search_archive(const std::string &id) {
   return Client::json("/searches/" + id + ".json", std::map<std::string, std::string>());
 }
 
+/**
+ * @brief Retrieves account information (e.g. plan, usage) for the given api_key.
+ * @param parameter Request parameters (e.g. api_key) merged with the client defaults.
+ * @return Parsed JSON response as a rapidjson::Document.
+ */
 rapidjson::Document Client::account(const std::map<std::string, std::string> &parameter) {
   return Client::json("/account.json", parameter);
 }
 
+/**
+ * @brief Looks up supported locations matching a query.
+ * @param parameter Request parameters (e.g. q, limit) merged with the client defaults.
+ * @return Parsed JSON response as a rapidjson::Document.
+ */
 rapidjson::Document Client::location(const std::map<std::string, std::string> &parameter) {
   return Client::json("/locations.json", parameter);
 }
 
+/**
+ * @brief Fetches a JSON endpoint and parses it into a rapidjson::Document.
+ * @param uri Endpoint path, relative to HOST, to request with output=json.
+ * @param parameter Request parameters merged with the client defaults.
+ * @return Parsed JSON response, or a Document with an "error" member if the
+ *         payload could not be parsed.
+ */
 rapidjson::Document Client::json(const std::string &uri, const std::map<std::string, std::string> &parameter) {
   GetResponse gr = get(uri, "json", parameter);
   rapidjson::Document d;
@@ -53,6 +99,12 @@ rapidjson::Document Client::json(const std::string &uri, const std::map<std::str
   return d;
 }
 
+/**
+ * @brief URL-encodes and joins a parameter map into a query string.
+ * @param curl Initialized CURL handle used to escape keys and values.
+ * @param parameter Parameters to encode.
+ * @return "key=value&key=value" encoded string, or "" if escaping any entry failed.
+ */
 std::string encodeUrl(CURL *curl, const std::map<std::string, std::string> &parameter) {
   std::ostringstream oss;
   bool first = true;
@@ -77,6 +129,17 @@ std::string encodeUrl(CURL *curl, const std::map<std::string, std::string> &para
   return oss.str();
 }
 
+/**
+ * @brief Builds the full query string for a request.
+ *
+ * Concatenates call-specific parameters, then the client's default
+ * parameters, then the output format and source tag.
+ *
+ * @param curl Initialized CURL handle used to escape parameters.
+ * @param output Desired response format (e.g. "json", "html", "md").
+ * @param parameter Call-specific parameters, merged with the client defaults.
+ * @return Fully encoded query string, without the leading '?'.
+ */
 std::string Client::url(CURL *curl, const std::string &output,
                         const std::map<std::string, std::string> &parameter) {
   std::string url_str = encodeUrl(curl, parameter);
@@ -89,6 +152,15 @@ std::string Client::url(CURL *curl, const std::string &output,
   return url_str;
 }
 
+/**
+ * @brief Performs the HTTP GET request against SerpApi.
+ * @param uri Endpoint path, relative to HOST (e.g. "/search").
+ * @param output Desired response format (e.g. "json", "html", "md").
+ * @param parameter Call-specific parameters, merged with the client defaults.
+ * @return HTTP status code and raw response body. httpCode is 0 on a
+ *         client-side failure (CURL init or transport error), with the
+ *         error message in payload.
+ */
 GetResponse Client::get(const std::string &uri, const std::string &output,
                         const std::map<std::string, std::string> &parameter) {
   std::call_once(curl_init_flag, []() { curl_global_init(CURL_GLOBAL_DEFAULT); });
