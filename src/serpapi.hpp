@@ -32,6 +32,8 @@ public:
 
   std::string html(const std::map<std::string, std::string> &parameter = {});
 
+  std::string markdown(const std::map<std::string, std::string> &parameter = {});
+
   rapidjson::Document search_archive(const std::string &search_id);
 
   rapidjson::Document

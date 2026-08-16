@@ -27,8 +27,8 @@ sudo apt update && sudo apt install -y rapidjson-dev
 Download and extract the latest release:
 
 ```bash
-curl -sL https://github.com/serpapi/serpapi-cpp/archive/refs/tags/v0.4.1.tar.gz | tar xz
-cd serpapi-0.4.1
+curl -sL https://github.com/serpapi/serpapi-cpp/archive/refs/tags/v0.5.0.tar.gz | tar xz
+cd serpapi-0.5.0
 meson setup build
 meson compile -C build
 sudo meson install -C build
@@ -118,6 +118,9 @@ rapidjson::Document results = client.search(params);
 
 // raw search engine html as a String
 std::string raw_html = client.html(params);
+
+// raw search engine results as Markdown String
+std::string raw_markdown = client.markdown(params);
 ```
 
 [Google search documentation](https://serpapi.com/search-api).
@@ -206,6 +209,7 @@ C++ versions validated by Github Actions:
  - C++20
 
 ## Change logs
+ * [2026-08-16] 0.5.0 Add markdown() support via the output=md format.
  * [2026-06-26] 0.4.1 Exclude test dependencies from release build.
  * [2026-06-08] 0.4.0 Add unit tests and improve error handling.
  * [2026-02-12] 0.3.0 Refactor and cleanup.
@@ -238,6 +242,7 @@ classDiagram
     parameter map
     search() Document
     html() String
+    markdown() String
     location() Document
     search_archive() Document
     account() Document
