@@ -1,1 +1,3 @@
 option('tests', type : 'boolean', value : false, description : 'Build test executable and require gtest')
+option('system_rapidjson', type : 'boolean', value : false,
+       description : 'Use the system RapidJSON instead of the pinned, CVE-patched copy in subprojects/. RapidJSON 1.1.0 as shipped by most distributions is affected by CVE-2024-38517 and CVE-2024-39684.')

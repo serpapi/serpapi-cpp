@@ -26,7 +26,7 @@ RECURSIVE              = YES
 #---------------------------------------------------------------------------
 # Input
 #---------------------------------------------------------------------------
-INPUT                  = src README.md
+INPUT                  = src README.md MIGRATION.md
 FILE_PATTERNS          = *.cpp *.hpp
 USE_MDFILE_AS_MAINPAGE = README.md
 

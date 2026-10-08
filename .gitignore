@@ -40,3 +40,9 @@ docs
 # Editor
 .vscode
 .cache
+
+# Meson subprojects downloaded from wraps
+subprojects/*/
+!subprojects/packagefiles/
+subprojects/packagecache/
+subprojects/.wraplock

@@ -16,7 +16,7 @@ void print_json(const rapidjson::Document &document) {
 
 int main() {
   const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr) {
+  if (env_p == nullptr || *env_p == '\0') {
     std::cout << "SERPAPI_KEY not set, skipping OOBT" << std::endl;
     return 0;
   }
@@ -32,27 +32,31 @@ int main() {
   parameter["q"] = "coffee";
   parameter["location"] = "Austin,TX";
 
-  rapidjson::Document d = client.search(parameter);
-  std::cout << "Document loaded" << std::endl;
-  print_json(d);
+  try {
+    rapidjson::Document d = client.search(parameter);
+    std::cout << "Document loaded" << std::endl;
+    print_json(d);
 
-  assert(!d.HasMember("error"));
-  assert(d.HasMember("search_metadata"));
-  assert(d["search_metadata"]["status"] == "Success");
+    assert(d.HasMember("search_metadata"));
+    assert(d["search_metadata"]["status"] == "Success");
 
-  std::string status = d["search_metadata"]["status"].GetString();
-  std::cout << "Status: " << status << std::endl;
+    std::string status = d["search_metadata"]["status"].GetString();
+    std::cout << "Status: " << status << std::endl;
 
-  assert(d["search_metadata"]["id"].IsString());
-  std::string id = d["search_metadata"]["id"].GetString();
-  std::cout << "Search ID: " << id << std::endl;
+    assert(d["search_metadata"]["id"].IsString());
+    std::string id = d["search_metadata"]["id"].GetString();
+    std::cout << "Search ID: " << id << std::endl;
 
-  std::cout << "Retrieving from archive..." << id << std::endl;
-  rapidjson::Document d2 = client.search_archive(id);
+    std::cout << "Retrieving from archive..." << id << std::endl;
+    rapidjson::Document d2 = client.search_archive(id);
 
-  assert(d2["search_metadata"]["status"] == "Success");
-  std::cout << "Successfully retrieved from archive." << std::endl;
+    assert(d2["search_metadata"]["status"] == "Success");
+    std::cout << "Successfully retrieved from archive." << std::endl;
+  } catch (const serpapi::Error &e) {
+    std::cerr << "Request failed: " << e.cause() << " (HTTP " << e.http_code() << ")" << std::endl;
+    return 1;
+  }
+
   std::cout << "Test passed." << std::endl;
-
   return 0;
 }

@@ -1,21 +1,30 @@
 # Automate serpapi C++ library
 # 
 
-task default: [:clean, :setup, :build, :test, :lint, :coverage, :example, :oobt] do
+desc('full check: clean build, tests with coverage, lint, examples, oobt')
+task default: [:clean, :coverage, :lint, :example, :oobt] do
 	puts "all good ready to release"
 	puts " next step: rake release"
 end
 
+desc('remove the build directory')
 task :clean do
 	sh('rm -rf build/')
 end
 
+def homebrew_prefix
+  ENV['HOMEBREW_PREFIX'] || (system('command -v brew >/dev/null 2>&1') ? `brew --prefix`.strip : nil)
+end
+
 def pkg_config_env
-  pkg_paths = [
-     "/opt/homebrew/lib/pkgconfig",
-     "/opt/homebrew/opt/rapidjson/lib/pkgconfig",
-     "/opt/homebrew/opt/libcurl/lib/pkgconfig"
-  ].select { |path| File.directory?(path) }
+  # Homebrew's curl formula is keg-only, so it must be listed explicitly or the
+  # build silently falls back to the macOS SDK libcurl.
+  prefix = homebrew_prefix
+  pkg_paths = prefix ? [
+     "#{prefix}/lib/pkgconfig",
+     "#{prefix}/opt/rapidjson/lib/pkgconfig",
+     "#{prefix}/opt/curl/lib/pkgconfig"
+  ].select { |path| File.directory?(path) } : []
 
   # Append existing PKG_CONFIG_PATH
   existing_path = ENV['PKG_CONFIG_PATH']
@@ -25,15 +34,30 @@ def pkg_config_env
   "PKG_CONFIG_PATH=#{Shellwords.escape(pkg_paths.join(':'))}"
 end
 
-desc('initialize meson build')
+# Include directory of the RapidJSON the build uses: the pinned subproject by
+# default, or the system package (pkg-config name is case-sensitive on Linux).
+def rapidjson_include
+  bundled = Dir.glob('subprojects/rapidjson-*/include').first
+  return bundled if bundled
+
+  system_inc = `#{pkg_config_env} pkg-config --variable=includedir RapidJSON 2>/dev/null`.strip
+  abort 'RapidJSON headers not found: run `rake setup` first to fetch the bundled copy.' if system_inc.empty?
+  system_inc
+end
+
+# Extra meson options from the environment, e.g. CPP_STD=c++20 rake coverage
+def meson_extra_args
+  ENV['CPP_STD'] ? " -Dcpp_std=#{ENV['CPP_STD']}" : ''
+end
+
+desc('initialize meson build (set CPP_STD=c++20 to change the C++ standard)')
 task :setup do
-  sh("#{pkg_config_env} meson setup --wipe build -Dtests=true")
+  sh("#{pkg_config_env} meson setup --wipe build -Dtests=true#{meson_extra_args}")
 end
 
 desc('build library')
-task :build => FileList['src/*.hpp', 'src/*.cpp'] do
+task :build do
 	sh('meson compile -C build')
-	sh('cd build && ninja')
 end
 
 desc('run test suite')
@@ -43,26 +67,24 @@ end
 
 desc('run static analysis')
 task :lint do
-	rapidjson_inc = `#{pkg_config_env} pkg-config --variable=includedir rapidjson`.strip
-	sh("cppcheck src/*.cpp test/*.cpp oobt/*.cpp example/*.cpp -I src -I #{rapidjson_inc} --enable=warning,style,performance,portability --suppress='*:*/rapidjson/*' --suppress=missingIncludeSystem --suppress=unusedFunction --error-exitcode=1")
+	require 'shellwords'
+	sh("cppcheck src/*.cpp test/*.cpp oobt/*.cpp example/*.cpp -I src -I #{Shellwords.escape(rapidjson_include)} --enable=warning,style,performance,portability --suppress='*:*/rapidjson/*' --suppress=missingIncludeSystem --suppress=unusedFunction --error-exitcode=1")
 end
 
-desc('generate coverage report')
+desc('run tests with coverage and print the report')
 task :coverage do
-	sh("#{pkg_config_env} meson setup build --wipe -Db_coverage=true -Dtests=true")
+	sh("#{pkg_config_env} meson setup build --wipe -Db_coverage=true -Dtests=true#{meson_extra_args}")
 	sh('ninja -C build')
 	sh('ninja -C build test')
-	# Use gcovr directly to focus on src/ and provide a cleaner report
-	sh('gcovr -r . --filter src/')
+	# -s appends the summary (lines/functions/branches) to the per-file table
 	sh('gcovr -r . --filter src/ -s')
 end
 
-task readme: ['README.md.erb'] do
-  `erb -T '-' README.md.erb > README.md`
+desc('generate API documentation with Doxygen (output: docs/)')
+task :doc do
+	abort 'doxygen not found: install it with `brew install doxygen` or `sudo apt install doxygen`.' unless system('command -v doxygen >/dev/null 2>&1')
+	sh('doxygen Doxyfile')
 end
-
-desc('generate documentation')
-task doc: [:readme]
 
 desc('run examples under build/example')
 task :example do
@@ -90,22 +112,31 @@ task release: [:default] do
 
   puts "Releasing #{tag}..."
 
-  # Check if tag already exists
-  if `git tag -l #{Shellwords.escape(tag)}`.strip == tag
-    puts "Tag #{tag} already exists. Skipping git tag."
-  else
-    # Ensure working directory is clean
-    unless `git status --porcelain`.strip.empty?
-      abort "Working directory is not clean. Please commit or stash changes."
-    end
+  unless `git status --porcelain`.strip.empty?
+    abort "Working directory is not clean. Please commit or stash changes."
+  end
 
+  head = `git rev-parse HEAD`.strip
+  tag_exists = `git tag -l #{Shellwords.escape(tag)}`.strip == tag
+  if tag_exists
+    tagged = `git rev-parse #{Shellwords.escape("#{tag}^{commit}")}`.strip
+    unless tagged == head
+      abort "Tag #{tag} points to #{tagged[0, 7]}, not HEAD (#{head[0, 7]}). " \
+            "Bump the version, or delete the tag with `git tag -d #{tag}` if it was never pushed."
+    end
+  end
+
+  # Create the distribution package before tagging, so a failed build or test
+  # does not leave a tag on a commit that was never released.
+  # meson dist performs a build and test in a temporary directory, so it needs the env
+  sh "#{pkg_config_env} meson dist -C build --include-subprojects"
+
+  if tag_exists
+    puts "Tag #{tag} already exists on HEAD. Skipping git tag."
+  else
     sh "git tag -a #{Shellwords.escape(tag)} -m #{Shellwords.escape("Release #{tag}")}"
     puts "Created tag #{tag}."
   end
-
-  # Create distribution package
-  # meson dist performs a build and test in a temporary directory, so it needs the env
-  sh "#{pkg_config_env} meson dist -C build"
 
   puts "\nRelease #{tag} completed successfully!"
   puts "Next steps:"
@@ -114,13 +145,14 @@ task release: [:default] do
 end
 
 namespace :install do
+	# RapidJSON is not listed: the build uses the pinned copy in subprojects/.
 	desc('install dependency on debian AARCH64 and x86 [tested]')
 	task :linux do
-		sh('sudo apt update -y && sudo apt install -f -y build-essential meson pkg-config curl cmake meson ninja-build libcurl4-openssl-dev rapidjson-dev googletest cppcheck gcovr lcov')
+		sh('sudo apt update -y && sudo apt install -f -y build-essential meson pkg-config curl cmake ninja-build libcurl4-openssl-dev googletest cppcheck gcovr lcov')
 	end
 
 	desc('install dependency on Apple M1 aarch64 [tested]')
 	task :apple do
-		sh('brew install meson pkg-config curl cmake meson ninja rapidjson googletest cppcheck gcovr lcov')
+		sh('brew install meson pkg-config curl cmake ninja googletest cppcheck gcovr lcov')
 	end
 end

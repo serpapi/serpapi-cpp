@@ -6,7 +6,7 @@ using namespace std;
 
 TEST(client, search) {
   const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr) {
+  if (env_p == nullptr || *env_p == '\0') {
     GTEST_SKIP() << "SERPAPI_KEY not set";
   }
   std::string apiKey(env_p);
@@ -37,15 +37,14 @@ TEST(client, location) {
   parameter["limit"] = "3";
   parameter["q"] = "Austin";
   rapidjson::Document doc = client.location(parameter);
-  const rapidjson::Value &list = doc.GetArray();
-  size_t arraySize = list.Size();
-  ASSERT_TRUE(arraySize > 1);
+  ASSERT_TRUE(doc.IsArray());
+  ASSERT_GT(doc.GetArray().Size(), 1u);
 }
 
 // fetch account information
 TEST(client, account) {
   const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr) {
+  if (env_p == nullptr || *env_p == '\0') {
     GTEST_SKIP() << "SERPAPI_KEY not set";
   }
   std::string apiKey(env_p);
@@ -62,7 +61,7 @@ TEST(client, account) {
 
 TEST(client, search_archive) {
   const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr) {
+  if (env_p == nullptr || *env_p == '\0') {
     GTEST_SKIP() << "SERPAPI_KEY not set";
   }
   std::string apiKey(env_p);
@@ -99,7 +98,7 @@ TEST(client, search_archive) {
 
 TEST(client, html) {
   const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr) {
+  if (env_p == nullptr || *env_p == '\0') {
     GTEST_SKIP() << "SERPAPI_KEY not set";
   }
   std::string apiKey(env_p);
@@ -119,7 +118,7 @@ TEST(client, html) {
 
 TEST(client, markdown) {
   const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr) {
+  if (env_p == nullptr || *env_p == '\0') {
     GTEST_SKIP() << "SERPAPI_KEY not set";
   }
   std::string apiKey(env_p);
@@ -135,4 +134,39 @@ TEST(client, markdown) {
   std::string markdown = client.markdown(parameter);
   ASSERT_FALSE(markdown.empty());
   ASSERT_TRUE(markdown.find("coffee") != std::string::npos);
+}
+
+// A search with no results returns HTTP 200 with an error in the body; it must
+// still throw, independent of the HTTP status.
+static const char *kNoResultsQuery = "site:zxqvjkwplmrtnbhgf.invalid qqzzxxkkvvwwjjhh";
+
+TEST(client, search_no_results_throws_with_http_200) {
+  const char *env_p = std::getenv("SERPAPI_KEY");
+  if (env_p == nullptr || *env_p == '\0') {
+    GTEST_SKIP() << "SERPAPI_KEY not set";
+  }
+  serpapi::Client client({{"api_key", env_p}, {"engine", "google"}});
+  try {
+    client.search({{"q", kNoResultsQuery}});
+    FAIL() << "expected serpapi::Error";
+  } catch (const serpapi::Error &e) {
+    EXPECT_EQ(e.http_code(), 200);
+    EXPECT_EQ(e.cause(), "Google hasn't returned any results for this query.");
+    EXPECT_NE(e.payload().find("search_metadata"), std::string::npos);
+  }
+}
+
+TEST(client, markdown_no_results_throws_with_http_200) {
+  const char *env_p = std::getenv("SERPAPI_KEY");
+  if (env_p == nullptr || *env_p == '\0') {
+    GTEST_SKIP() << "SERPAPI_KEY not set";
+  }
+  serpapi::Client client({{"api_key", env_p}, {"engine", "google"}});
+  try {
+    client.markdown({{"q", kNoResultsQuery}});
+    FAIL() << "expected serpapi::Error";
+  } catch (const serpapi::Error &e) {
+    EXPECT_EQ(e.http_code(), 200);
+    EXPECT_EQ(e.cause(), "Google hasn't returned any results for this query.");
+  }
 }

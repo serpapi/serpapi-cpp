@@ -11,15 +11,25 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        cpp_std: [ 'c++17', 'c++20' ]
+
+    name: build (${{ matrix.cpp_std }})
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v7
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: '3.1'
+        ruby-version: '3.4'
     - name: Install dependencies
       run: rake install:linux
-    - name: Run tests
-      run: rake setup build test
+    - name: Run tests with coverage
+      run: rake coverage
       env:
-        SERPAPI_KEY: ${{secrets.SERPAPI_KEY}}
+        CPP_STD: ${{ matrix.cpp_std }}
+        # Live-API tests run once per workflow, on the C++17 leg, which is also the
+        # coverage of record. The C++20 leg skips them to avoid doubling API usage.
+        SERPAPI_KEY: ${{ matrix.cpp_std == 'c++17' && secrets.SERPAPI_KEY || '' }}

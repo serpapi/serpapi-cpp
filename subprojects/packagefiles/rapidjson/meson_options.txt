@@ -1,0 +1,2 @@
+option('install_headers', type : 'boolean', value : false,
+       description : 'Install the pinned RapidJSON headers next to the serpapi headers')

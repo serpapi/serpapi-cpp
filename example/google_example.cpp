@@ -8,7 +8,7 @@
 
 int main() {
   const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr) {
+  if (env_p == nullptr || *env_p == '\0') {
     std::cout << "SERPAPI_KEY not set, skipping example" << std::endl;
     return 0;
   }
@@ -24,24 +24,30 @@ int main() {
   parameter["q"] = "coffee";
   parameter["location"] = "Austin,TX";
 
-  rapidjson::Document d = client.search(parameter);
+  try {
+    rapidjson::Document d = client.search(parameter);
 
-  rapidjson::StringBuffer buffer;
-  rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-  d.Accept(writer);
+    rapidjson::StringBuffer buffer;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    d.Accept(writer);
 
-  std::cout << "Search Results:" << std::endl;
-  std::cout << buffer.GetString() << std::endl;
+    std::cout << "Search Results:" << std::endl;
+    std::cout << buffer.GetString() << std::endl;
 
-  if (d.HasMember("search_metadata") && d["search_metadata"].HasMember("id")) {
-    std::string id = d["search_metadata"]["id"].GetString();
-    std::cout << "\nArchiving search ID: " << id << std::endl;
-    rapidjson::Document archived = client.search_archive(id);
+    if (d.HasMember("search_metadata") && d["search_metadata"].HasMember("id")) {
+      std::string id = d["search_metadata"]["id"].GetString();
+      std::cout << "\nArchiving search ID: " << id << std::endl;
+      rapidjson::Document archived = client.search_archive(id);
 
-    if (archived.HasMember("search_metadata") &&
-        archived["search_metadata"]["status"] == "Success") {
-      std::cout << "Successfully retrieved from archive." << std::endl;
+      if (archived.HasMember("search_metadata") &&
+          archived["search_metadata"]["status"] == "Success") {
+        std::cout << "Successfully retrieved from archive." << std::endl;
+      }
     }
+  } catch (const serpapi::Error &e) {
+    // cause() is SerpApi's error message; http_code() is 0 for transport failures.
+    std::cerr << "Request failed: " << e.cause() << " (HTTP " << e.http_code() << ")" << std::endl;
+    return 1;
   }
 
   return 0;

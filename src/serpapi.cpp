@@ -3,207 +3,173 @@
  */
 
 #include "callback.hpp"
+#include "query.hpp"
+#include "response.hpp"
 #include <serpapi.hpp>
+#include <curl/curl.h>
+#include <memory>
 #include <mutex>
-#include <sstream>
+#include <optional>
+#include <rapidjson/error/en.h>
 
 namespace serpapi {
 
 const static std::string HOST = "https://serpapi.com";
 const static std::string NAME = "serpapi-cpp";
-const static std::string VERSION = "0.5.0";
+#ifndef SERPAPI_VERSION
+#error "SERPAPI_VERSION must be defined by the build system"
+#endif
+const static std::string VERSION = SERPAPI_VERSION;
 
 static std::once_flag curl_init_flag;
 
-/**
- * @brief Constructs a client with default parameters merged into every request.
- * @param parameter Default parameters (e.g. api_key, engine) applied to all calls.
- */
-Client::Client(const std::map<std::string, std::string> &parameter) {
-  this->parameter = parameter;
+namespace {
+
+struct Response {
+  long http_code = 0;
+  std::string payload;
+};
+
+using CurlHandle = std::unique_ptr<CURL, decltype(&curl_easy_cleanup)>;
+
+/// Performs an HTTP GET; throws Error only on client-side (pre-response) failure.
+Response httpGet(const std::string &url, long timeout) {
+  std::call_once(curl_init_flag, []() { curl_global_init(CURL_GLOBAL_DEFAULT); });
+
+  CurlHandle curl(curl_easy_init(), &curl_easy_cleanup);
+  if (!curl) {
+    throw Error("CURL initialization failed");
+  }
+
+  Response response;
+  curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
+  curl_easy_setopt(curl.get(), CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+  curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, timeout);
+  curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt(curl.get(), CURLOPT_SSL_VERIFYHOST, 2L);
+  curl_easy_setopt(curl.get(), CURLOPT_SSL_VERIFYPEER, 1L);
+  curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, callback);
+  curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &response.payload);
+
+  CURLcode res = curl_easy_perform(curl.get());
+  if (res != CURLE_OK) {
+    throw Error(std::string("CURL error: ") + curl_easy_strerror(res));
+  }
+
+  curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &response.http_code);
+  return response;
 }
 
-Client::~Client() {}
+} // namespace
 
-/**
- * @brief Runs a search and returns the raw search engine result page as HTML.
- * @param parameter Search parameters (e.g. q, location) merged with the client defaults.
- * @return Raw HTML response body.
- */
-std::string Client::html(const std::map<std::string, std::string> &parameter) {
-  GetResponse gr = Client::get("/search", "html", parameter);
-  return gr.payload;
+struct Error::Detail {
+  std::string cause;
+  long http_code;
+  std::string payload;
+};
+
+Error::Error(const std::string &message, long http_code, std::string payload)
+    : std::runtime_error(message),
+      detail_(std::make_shared<const Detail>(Detail{message, http_code, std::move(payload)})) {}
+
+const std::string &Error::cause() const noexcept { return detail_->cause; }
+long Error::http_code() const noexcept { return detail_->http_code; }
+const std::string &Error::payload() const noexcept { return detail_->payload; }
+
+namespace detail {
+
+/// Per-client settings, shared by the request helpers below.
+struct Settings {
+  Parameters parameter;
+  int timeout = 60;
+};
+
+} // namespace detail
+
+namespace {
+
+using detail::Settings;
+
+/// Sends the request and returns the body; throws Error on transport failure or HTTP status >= 400.
+std::string request(const Settings &impl, const std::string &uri, const std::string &output,
+                    const Parameters &parameter, long *http_code = nullptr) {
+  const std::string query = buildQuery(impl.parameter, parameter, output, NAME + ":" + VERSION);
+  Response response = httpGet(HOST + uri + "?" + query, static_cast<long>(impl.timeout));
+
+  if (response.http_code >= 400) {
+    // SerpApi sends {"error": "..."} for every output format on HTTP errors.
+    std::string message = bodyError(response.payload)
+                              .value_or("HTTP error " + std::to_string(response.http_code));
+    throw Error(message, response.http_code, std::move(response.payload));
+  }
+  if (http_code) *http_code = response.http_code;
+  return response.payload;
 }
 
-/**
- * @brief Runs a search and returns the raw search engine result page as Markdown.
- * @param parameter Search parameters (e.g. q, location) merged with the client defaults.
- * @return Raw Markdown response body.
- */
-std::string Client::markdown(const std::map<std::string, std::string> &parameter) {
-  GetResponse gr = Client::get("/search", "md", parameter);
-  return gr.payload;
-}
+rapidjson::Document json(const Settings &impl, const std::string &uri,
+                         const Parameters &parameter) {
+  long http_code = 0;
+  std::string payload = request(impl, uri, "json", parameter, &http_code);
 
-/**
- * @brief Runs a search and returns the parsed/structured results as JSON.
- * @param parameter Search parameters (e.g. q, location) merged with the client defaults.
- * @return Parsed JSON response as a rapidjson::Document.
- */
-rapidjson::Document Client::search(const std::map<std::string, std::string> &parameter) {
-  return Client::json("/search", parameter);
-}
-
-/**
- * @brief Retrieves a previously run search from the search archive.
- * @param id Search id, as returned in search_metadata.id from a prior search().
- * @return Parsed JSON response as a rapidjson::Document.
- */
-rapidjson::Document Client::search_archive(const std::string &id) {
-  return Client::json("/searches/" + id + ".json", std::map<std::string, std::string>());
-}
-
-/**
- * @brief Retrieves account information (e.g. plan, usage) for the given api_key.
- * @param parameter Request parameters (e.g. api_key) merged with the client defaults.
- * @return Parsed JSON response as a rapidjson::Document.
- */
-rapidjson::Document Client::account(const std::map<std::string, std::string> &parameter) {
-  return Client::json("/account.json", parameter);
-}
-
-/**
- * @brief Looks up supported locations matching a query.
- * @param parameter Request parameters (e.g. q, limit) merged with the client defaults.
- * @return Parsed JSON response as a rapidjson::Document.
- */
-rapidjson::Document Client::location(const std::map<std::string, std::string> &parameter) {
-  return Client::json("/locations.json", parameter);
-}
-
-/**
- * @brief Fetches a JSON endpoint and parses it into a rapidjson::Document.
- * @param uri Endpoint path, relative to HOST, to request with output=json.
- * @param parameter Request parameters merged with the client defaults.
- * @return Parsed JSON response, or a Document with an "error" member if the
- *         payload could not be parsed.
- */
-rapidjson::Document Client::json(const std::string &uri, const std::map<std::string, std::string> &parameter) {
-  GetResponse gr = get(uri, "json", parameter);
   rapidjson::Document d;
-  d.Parse(gr.payload.c_str());
+  d.Parse(payload.data(), payload.size());
   if (d.HasParseError()) {
-    d.SetObject();
-    d.AddMember("error", "JSON parse error", d.GetAllocator());
+    throw Error(std::string("JSON parse error: ") + rapidjson::GetParseError_En(d.GetParseError()),
+                http_code, std::move(payload));
+  }
+  if (auto message = jsonError(d)) {
+    throw Error(*message, http_code, std::move(payload));
   }
   return d;
 }
 
-/**
- * @brief URL-encodes and joins a parameter map into a query string.
- * @param curl Initialized CURL handle used to escape keys and values.
- * @param parameter Parameters to encode.
- * @return "key=value&key=value" encoded string, or "" if escaping any entry failed.
- */
-std::string encodeUrl(CURL *curl, const std::map<std::string, std::string> &parameter) {
-  std::ostringstream oss;
-  bool first = true;
+} // namespace
 
-  for (const auto& entry : parameter) {
-    char *escaped_key = curl_easy_escape(curl, entry.first.c_str(), entry.first.length());
-    char *escaped_value = curl_easy_escape(curl, entry.second.c_str(), entry.second.length());
+struct Client::Impl : detail::Settings {};
 
-    if (!escaped_key || !escaped_value) {
-      if (escaped_key) curl_free(escaped_key);
-      if (escaped_value) curl_free(escaped_value);
-      return "";
-    }
-
-    if (!first) oss << "&";
-    oss << escaped_key << "=" << escaped_value;
-    first = false;
-
-    curl_free(escaped_key);
-    curl_free(escaped_value);
-  }
-  return oss.str();
+Client::Client(Parameters parameter) : impl_(std::make_unique<Impl>()) {
+  impl_->parameter = std::move(parameter);
 }
 
-/**
- * @brief Builds the full query string for a request.
- *
- * Concatenates call-specific parameters, then the client's default
- * parameters, then the output format and source tag.
- *
- * @param curl Initialized CURL handle used to escape parameters.
- * @param output Desired response format (e.g. "json", "html", "md").
- * @param parameter Call-specific parameters, merged with the client defaults.
- * @return Fully encoded query string, without the leading '?'.
- */
-std::string Client::url(CURL *curl, const std::string &output,
-                        const std::map<std::string, std::string> &parameter) {
-  std::string url_str = encodeUrl(curl, parameter);
-  if (this->parameter.size() > 0) {
-    if (!url_str.empty()) url_str += "&";
-    url_str += encodeUrl(curl, this->parameter);
-  }
-  url_str += "&output=" + output;
-  url_str += "&source=" + NAME + ":" + VERSION;
-  return url_str;
+Client::~Client() = default;
+Client::Client(const Client &other) : impl_(std::make_unique<Impl>(*other.impl_)) {}
+Client::Client(Client &&other) noexcept = default;
+Client &Client::operator=(Client &&other) noexcept = default;
+
+Client &Client::operator=(const Client &other) {
+  if (this != &other) impl_ = std::make_unique<Impl>(*other.impl_);
+  return *this;
 }
 
-/**
- * @brief Performs the HTTP GET request against SerpApi.
- * @param uri Endpoint path, relative to HOST (e.g. "/search").
- * @param output Desired response format (e.g. "json", "html", "md").
- * @param parameter Call-specific parameters, merged with the client defaults.
- * @return HTTP status code and raw response body. httpCode is 0 on a
- *         client-side failure (CURL init or transport error), with the
- *         error message in payload.
- */
-GetResponse Client::get(const std::string &uri, const std::string &output,
-                        const std::map<std::string, std::string> &parameter) {
-  std::call_once(curl_init_flag, []() { curl_global_init(CURL_GLOBAL_DEFAULT); });
+void Client::set_timeout(int seconds) { impl_->timeout = seconds; }
 
-  CURL *curl = curl_easy_init();
-  if (!curl) {
-    GetResponse gr;
-    gr.httpCode = 0;
-    gr.payload = "CURL initialization failed";
-    return gr;
+std::string Client::html(const Parameters &parameter) const {
+  return request(*impl_, "/search", "html", parameter);
+}
+
+std::string Client::markdown(const Parameters &parameter) const {
+  long http_code = 0;
+  std::string payload = request(*impl_, "/search", "md", parameter, &http_code);
+  if (auto message = markdownError(payload)) {
+    throw Error(*message, http_code, std::move(payload));
   }
+  return payload;
+}
 
-  const std::string url_params = this->url(curl, output, parameter);
-  const std::string full_url = HOST + uri + "?" + url_params;
+rapidjson::Document Client::search(const Parameters &parameter) const {
+  return json(*impl_, "/search", parameter);
+}
 
-  curl_easy_setopt(curl, CURLOPT_URL, full_url.c_str());
-  curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)timeout);
-  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+rapidjson::Document Client::search_archive(const std::string &search_id) const {
+  return json(*impl_, "/searches/" + percentEncode(search_id) + ".json", {});
+}
 
-  long httpCode(0);
-  std::string httpData;
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, callback);
-  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &httpData);
+rapidjson::Document Client::account(const Parameters &parameter) const {
+  return json(*impl_, "/account.json", parameter);
+}
 
-  CURLcode res = curl_easy_perform(curl);
-  if (res != CURLE_OK) {
-    curl_easy_cleanup(curl);
-    GetResponse gr;
-    gr.httpCode = 0;
-    gr.payload = std::string("CURL error: ") + curl_easy_strerror(res);
-    return gr;
-  }
-
-  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-  curl_easy_cleanup(curl);
-
-  GetResponse gr;
-  gr.httpCode = httpCode;
-  gr.payload = httpData;
-  return gr;
+rapidjson::Document Client::location(const Parameters &parameter) const {
+  return json(*impl_, "/locations.json", parameter);
 }
 
 } // namespace serpapi
