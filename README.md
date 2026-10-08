@@ -175,8 +175,8 @@ Upgrading from 0.5? See [Migrating from 0.5 to 1.0](MIGRATION.md).
 
  * [Full documentation on SerpApi.com](https://serpapi.com)
  * [Library Github page](https://github.com/serpapi/serpapi-cpp)
- * [Google Search example](example/google_example.cpp)
- * [Integration test (OOBT) example](oobt/main.cpp)
+ * [Examples](#examples): one program per API endpoint and per search engine
+ * [Demo program](demo/main.cpp)
  * [API health status](https://serpapi.com/status)
 
 ### Location API
@@ -220,6 +220,37 @@ serpapi::Client client({{"api_key", "secret_api_key"}});
 rapidjson::Document account_info = client.account();
 ```
 
+### Pagination
+
+Google pages are selected with the `start` offset: `0` for the first page,
+then `10`, `20`, and so on. The offset advances by 10 even when a page shows
+fewer organic results. The response's `serpapi_pagination.next` is present
+only while there is a next page, so stop when it is missing. Requesting
+past the last page uses a search credit and can fail with an error.
+
+```cpp
+serpapi::Client client({{"api_key", "secret_api_key"}, {"engine", "google"}});
+
+for (int start = 0; start < 30; start += 10) {  // at most 3 pages
+  rapidjson::Document page = client.search({{"q", "coffee"}, {"start", std::to_string(start)}});
+
+  for (const auto &result : page["organic_results"].GetArray()) {
+    std::cout << result["title"].GetString() << std::endl;
+  }
+
+  if (!page.HasMember("serpapi_pagination") || !page["serpapi_pagination"].HasMember("next")) {
+    break;  // last page
+  }
+}
+```
+
+Each page is a separate search and uses one search credit. Other engines page
+with different parameters (for example `first` for Bing, `page` or a page
+token for others). The `serpapi_pagination.next` URL of each response shows
+the parameters for the next page. The
+[Google Search example](example/google_example.cpp) is a complete program
+that combines search, search archive and pagination, with error handling.
+
 ## Advanced search API usage
 
 Search API features non-blocking search using the option: `async=true`.
@@ -248,6 +279,55 @@ int main() {
     return 0;
 }
 ```
+
+## Examples
+
+Complete, runnable programs live in [example/](example/). Each reads the API
+key from `SERPAPI_KEY` and skips if it is not set.
+
+```bash
+export SERPAPI_KEY="your_secret_key"
+rake setup build
+rake example                  # run all examples
+rake example[bing_example]    # run one example
+```
+
+Every search uses one search credit; location, account and search archive
+lookups are free. Running all examples uses about 17 searches, so the full
+`rake` check runs only `google_example`.
+
+### API endpoints
+
+| Example | Method | Credits |
+|---------|--------|--------:|
+| [google_example](example/google_example.cpp) | `search()`, `search_archive()` and pagination combined | 3 |
+| [search_example](example/search_example.cpp) | `search()`: results as JSON | 1 |
+| [html_example](example/html_example.cpp) | `html()`: raw HTML page | 1 |
+| [markdown_example](example/markdown_example.cpp) | `markdown()`: page as Markdown | 1 |
+| [location_example](example/location_example.cpp) | `location()`: no `api_key` needed | 0 |
+| [search_archive_example](example/search_archive_example.cpp) | `search_archive()`: pass a search id as argument to skip the search | 0–1 |
+| [account_example](example/account_example.cpp) | `account()`: plan and usage | 0 |
+
+### Search engines
+
+The same engines and parameters as the
+[Ruby client's examples](https://github.com/serpapi/serpapi-ruby/tree/master/spec/serpapi/client/example).
+
+| Example | Engine | Parameters | Results |
+|---------|--------|------------|---------|
+| [baidu_example](example/baidu_example.cpp) | [Baidu](https://serpapi.com/baidu-search-api) | `q` | `organic_results` |
+| [bing_example](example/bing_example.cpp) | [Bing](https://serpapi.com/bing-search-api) | `q` | `organic_results` |
+| [duckduckgo_example](example/duckduckgo_example.cpp) | [DuckDuckGo](https://serpapi.com/duckduckgo-search-api) | `q` | `organic_results` |
+| [ebay_example](example/ebay_example.cpp) | [eBay](https://serpapi.com/ebay-search-api) | `_nkw` | `organic_results` |
+| [google_maps_example](example/google_maps_example.cpp) | [Google Maps](https://serpapi.com/google-maps-api) | `q`, `ll`, `type` | `local_results` |
+| [naver_example](example/naver_example.cpp) | [Naver](https://serpapi.com/naver-search-api) | `query` | `ads_results` |
+| [walmart_example](example/walmart_example.cpp) | [Walmart](https://serpapi.com/walmart-search-api) | `query` | `organic_results` |
+| [yahoo_example](example/yahoo_example.cpp) | [Yahoo](https://serpapi.com/yahoo-search-api) | `p` | `organic_results` |
+| [yandex_example](example/yandex_example.cpp) | [Yandex](https://serpapi.com/yandex-search-api) | `text` | `organic_results` |
+| [youtube_example](example/youtube_example.cpp) | [YouTube](https://serpapi.com/youtube-search-api) | `search_query` | `video_results` |
+
+Each engine names its query parameter differently (`q`, `p`, `text`, `query`,
+`_nkw`, `search_query`); see the engine's documentation for the full list.
 
 ## Supported C++ version.
 C++ versions validated by Github Actions:
@@ -409,7 +489,7 @@ docker run --rm -it -e SERPAPI_KEY -v "$PWD":/src:ro ubuntu:24.04 bash -c '
     - `rake install:linux`
  - Initialize the project: `rake setup`
  - Build: `rake build`
- - Run examples: `rake example`
+ - Run examples: `rake example` (all) or `rake example[bing_example]` (one); see [Examples](#examples)
  - Generate API documentation into `docs/` (requires Doxygen): `rake doc`
  - Full check before a release (clean build, tests with coverage, lint, examples): `rake`
 

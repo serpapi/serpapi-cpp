@@ -1,8 +1,11 @@
 # Automate serpapi C++ library
 # 
 
-desc('full check: clean build, tests with coverage, lint, examples, oobt')
-task default: [:clean, :coverage, :lint, :example, :oobt] do
+desc('full check: clean build, tests with coverage, lint, google_example, demo')
+task default: [:clean, :coverage, :lint] do
+	# Only google_example: running every example costs ~17 searches.
+	Rake::Task[:example].invoke('google_example')
+	Rake::Task[:demo].invoke
 	puts "all good ready to release"
 	puts " next step: rake release"
 end
@@ -68,7 +71,7 @@ end
 desc('run static analysis')
 task :lint do
 	require 'shellwords'
-	sh("cppcheck src/*.cpp test/*.cpp oobt/*.cpp example/*.cpp -I src -I #{Shellwords.escape(rapidjson_include)} --enable=warning,style,performance,portability --suppress='*:*/rapidjson/*' --suppress=missingIncludeSystem --suppress=unusedFunction --error-exitcode=1")
+	sh("cppcheck src/*.cpp test/*.cpp demo/*.cpp example/*.cpp -I src -I #{Shellwords.escape(rapidjson_include)} --enable=warning,style,performance,portability --suppress='*:*/rapidjson/*' --suppress=missingIncludeSystem --suppress=unusedFunction --error-exitcode=1")
 end
 
 desc('run tests with coverage and print the report')
@@ -86,17 +89,30 @@ task :doc do
 	sh('doxygen Doxyfile')
 end
 
-desc('run examples under build/example')
-task :example do
-	Dir.glob('build/example/*').each do |file|
-		next if file.end_with?('.p')
-		sh(file)
+desc('run all examples, or one: rake example[bing_example] (each search uses one credit)')
+task :example, [:name] do |_task, args|
+	examples = Dir.glob('build/example/*_example').select { |f| File.file?(f) && File.executable?(f) }.sort
+	abort 'No examples built: run `rake setup build` first.' if examples.empty?
+
+	if args[:name]
+		path = "build/example/#{args[:name]}"
+		unless examples.include?(path)
+			abort "Unknown example '#{args[:name]}'. Available: #{examples.map { |f| File.basename(f) }.join(', ')}"
+		end
+		examples = [path]
 	end
+
+	# Run every example even if one fails, then report all failures.
+	failed = examples.reject do |file|
+		puts "== #{File.basename(file)}"
+		system(file)
+	end
+	abort "Failed examples: #{failed.map { |f| File.basename(f) }.join(', ')}" unless failed.empty?
 end
 
-desc('run oobt under build/oobt')
-task :oobt do
-	sh('./build/oobt/oobt')
+desc('run the demo under build/demo')
+task :demo do
+	sh('./build/demo/demo')
 end
 
 desc('release current library')

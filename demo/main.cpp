@@ -17,7 +17,7 @@ void print_json(const rapidjson::Document &document) {
 int main() {
   const char *env_p = std::getenv("SERPAPI_KEY");
   if (env_p == nullptr || *env_p == '\0') {
-    std::cout << "SERPAPI_KEY not set, skipping OOBT" << std::endl;
+    std::cout << "SERPAPI_KEY not set, skipping demo" << std::endl;
     return 0;
   }
 

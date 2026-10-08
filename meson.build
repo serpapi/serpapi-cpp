@@ -52,7 +52,7 @@ pkg.generate(libserpapi,
 libserpapi_dep = declare_dependency(include_directories : incdirs, link_with : libserpapi,
                                     dependencies : rapidjson_dep)
 
-subdir('oobt')
+subdir('demo')
 subdir('example')
 
 if get_option('tests')
