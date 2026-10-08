@@ -14,7 +14,7 @@ C++17, meson and libcurl are required.
 
 ```bash
 # macOS (Homebrew's curl is keg-only, so point pkg-config at it)
-brew install meson curl
+brew install meson pkg-config curl
 export PKG_CONFIG_PATH="$(brew --prefix curl)/lib/pkgconfig:$PKG_CONFIG_PATH"
 
 # Debian/Ubuntu Linux
@@ -33,6 +33,13 @@ where the package carries its own patches), configure with
 `-Dsystem_rapidjson=true`. Your application must then use that same RapidJSON,
 because `rapidjson::Document` is part of the serpapi API.
 
+If compiling your application fails with *"serpapi.hpp sees different
+RapidJSON headers than libserpapi was built with"*, another RapidJSON (for
+example a system 1.1.0) comes first on your include path. Put serpapi's include
+directory first, as `pkg-config --cflags serpapi` does, and include
+`<serpapi.hpp>` before any other RapidJSON header. Without this check, such a
+program would compile and then crash at run time.
+
 ### Installation from Release
 
 Download and extract the latest release:
@@ -45,21 +52,16 @@ meson compile -C build
 sudo meson install -C build
 ```
 
-Tests are disabled by default for release builds. To build and run tests with Meson, install GoogleTest and configure with `-Dtests=true`.
+Tests are not built by default. To build and run them, install GoogleTest and configure with `-Dtests=true`.
 
 ### Meson Dependency
 
-Add the dependency to your `meson.build`:
+Add the dependency to your `meson.build`. With `fallback`, Meson uses an
+installed serpapi if pkg-config finds one, and otherwise builds it from
+`subprojects/serpapi` (for example a git clone or a wrap file):
 
 ```meson
-serpapi_dep = dependency('serpapi')
-```
-
-Or if you are using it as a subproject:
-
-```meson
-serpapi_proj = subproject('serpapi')
-serpapi_dep = serpapi_proj.get_variable('libserpapi_dep')
+serpapi_dep = dependency('serpapi', fallback : ['serpapi', 'libserpapi_dep'])
 ```
 
 [SerpApi C++](https://github.com/serpapi/serpapi-cpp)
@@ -67,56 +69,51 @@ serpapi_dep = serpapi_proj.get_variable('libserpapi_dep')
 ## Simple Usage
 
 ```cpp
+#include <cstdlib>
 #include <iostream>
-#include <map>
-#include <string>
 #include <serpapi.hpp>
-#include <rapidjson/document.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/prettywriter.h>
 
 int main() {
-    const char* env_p = std::getenv("SERPAPI_KEY");
-    if (!env_p) return 1;
+  const char *api_key = std::getenv("SERPAPI_KEY");
+  if (api_key == nullptr) {
+    std::cerr << "Set SERPAPI_KEY to your SerpApi API key" << std::endl;
+    return 1;
+  }
 
-    std::string apiKey(env_p);
-    std::map<std::string, std::string> default_parameter;
-    default_parameter["api_key"] = apiKey;
-    default_parameter["engine"] = "google";
+  serpapi::Client client({{"api_key", api_key}, {"engine", "google"}});
 
-    serpapi::Client client(default_parameter);
+  try {
+    rapidjson::Document results = client.search({{"q", "coffee"}, {"location", "Austin,TX"}});
 
-    std::map<std::string, std::string> parameter;
-    parameter["q"] = "coffee";
-    parameter["location"] = "Austin,TX";
-
-    rapidjson::Document d = client.search(parameter);
-
-    rapidjson::StringBuffer buffer;
-    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-    d.Accept(writer);
-    std::cout << "\nINFO: " << buffer.GetString() << std::endl;
-    return 0;
+    if (results.HasMember("organic_results")) {
+      for (const auto &result : results["organic_results"].GetArray()) {
+        if (result.HasMember("title")) std::cout << result["title"].GetString() << std::endl;
+      }
+    }
+  } catch (const serpapi::Error &e) {
+    std::cerr << "Search failed: " << e.cause() << std::endl;
+    return 1;
+  }
+  return 0;
 }
 ```
 
-This example runs a search for "coffee" on Google. It then returns the results as a RapidJSON Document. See the [playground](https://serpapi.com/playground) to generate your own code, or check out our [local examples](example/).
+This example runs a Google search for "coffee" near Austin, TX and prints the
+title of each organic result. Results come back as a RapidJSON `Document`, and
+any error throws `serpapi::Error` (see [Error handling](#error-handling)). See
+the [playground](https://serpapi.com/playground) to generate your own code, or
+the [examples](#examples).
 
 ## Advanced Usage
 ### Search API
 ```cpp
 #include <serpapi.hpp>
 
-// serpapi client created with default parameters
-std::map<std::string, std::string> default_params = {
-    {"api_key", "secret_key"},
-    {"engine", "google"}
-};
-serpapi::Client client(default_params);
+// serpapi client created with default parameters, sent with every request
+serpapi::Client client({{"api_key", "secret_key"}, {"engine", "google"}});
 
 // search query overview (more fields available depending on search engine)
-std::map<std::string, std::string> params = {
-  {"engine", "google"},
+serpapi::Parameters params = {
   {"q", "Coffee"},
   {"location", "Portland,Oregon,United States"},
   {"device", "desktop"},
@@ -132,12 +129,25 @@ std::string raw_html = client.html(params);
 
 // raw search engine results as Markdown String
 std::string raw_markdown = client.markdown(params);   // or client.md(params)
+
+// a per-call parameter overrides the client default for that call only
+rapidjson::Document bing = client.search({{"engine", "bing"}, {"q", "Coffee"}});
 ```
 
 Parameters passed to a call take precedence over the client defaults when the
-same key is present in both.
+same key is present in both. `serpapi::Parameters` is a
+`std::map<std::string, std::string>`.
 
 [Google search documentation](https://serpapi.com/search-api).
+
+#### Client options
+
+ - `client.set_timeout(30)` sets the timeout of each request in seconds (default 60).
+ - Request methods are `const` and can be called concurrently from several
+   threads on the same `Client`. `set_timeout()` is not synchronized: call it
+   before sharing the client between threads.
+ - `Client` is copyable and movable. Copies are independent, so each copy can
+   have its own defaults and timeout.
 
 #### Error handling
 
@@ -197,7 +207,8 @@ list.Accept(writer);
 std::cout << buffer.GetString() << std::endl;
 ```
 
-It prints the first 3 locations matching Austin (Texas, Texas, Rochester).
+It prints the first 3 locations matching Austin: Austin, Texas; Austin,
+Minnesota; and Austin, Indiana (all in the United States).
 
 NOTE: api_key is not required for this endpoint.
 
@@ -234,8 +245,10 @@ serpapi::Client client({{"api_key", "secret_api_key"}, {"engine", "google"}});
 for (int start = 0; start < 30; start += 10) {  // at most 3 pages
   rapidjson::Document page = client.search({{"q", "coffee"}, {"start", std::to_string(start)}});
 
-  for (const auto &result : page["organic_results"].GetArray()) {
-    std::cout << result["title"].GetString() << std::endl;
+  if (page.HasMember("organic_results")) {
+    for (const auto &result : page["organic_results"].GetArray()) {
+      if (result.HasMember("title")) std::cout << result["title"].GetString() << std::endl;
+    }
   }
 
   if (!page.HasMember("serpapi_pagination") || !page["serpapi_pagination"].HasMember("next")) {
@@ -251,34 +264,38 @@ the parameters for the next page. The
 [Google Search example](example/google_example.cpp) is a complete program
 that combines search, search archive and pagination, with error handling.
 
-## Advanced search API usage
+### Asynchronous searches
 
-Search API features non-blocking search using the option: `async=true`.
- - Non-blocking - async=true - a single parent process can handle unlimited concurrent searches.
- - Blocking - async=false - processes must wait for the HTTP response.
-
-### Example: Asynchronous searches
+By default `search()` waits until the results are ready. With `async=true`,
+SerpApi accepts the search and returns at once with its id and a `Queued` or
+`Processing` status, so a single thread can submit many searches before
+collecting any results. Retrieve each search from the archive until its status
+is no longer `Queued` or `Processing`. Archive lookups are free; the search
+itself uses one credit.
 
 ```cpp
-#include <serpapi.hpp>
-#include <rapidjson/document.h>
-#include <iostream>
+#include <chrono>
+#include <thread>
 
-int main() {
-    serpapi::Client client({{"api_key", "YOUR_API_KEY"}, {"engine", "google"}});
+serpapi::Client client({{"api_key", "secret_api_key"}, {"engine", "google"}});
 
-    std::map<std::string, std::string> parameter;
-    parameter["q"] = "coffee";
-    parameter["async"] = "true";
+rapidjson::Document submitted = client.search({{"q", "coffee"}, {"async", "true"}});
+const std::string id = submitted["search_metadata"]["id"].GetString();
 
-    rapidjson::Document d = client.search(parameter);
-    std::string id = d["search_metadata"]["id"].GetString();
-
-    // You can later retrieve the results using search_archive
-    rapidjson::Document results = client.search_archive(id);
-    return 0;
+rapidjson::Document results;
+for (int attempt = 0; attempt < 60; ++attempt) {  // give up after about a minute
+  results = client.search_archive(id);
+  const std::string status = results["search_metadata"]["status"].GetString();
+  if (status != "Queued" && status != "Processing") break;  // "Success"
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 ```
+
+If the search fails, `search_archive()` throws `serpapi::Error` like any other
+call. If the status is still `Queued` or `Processing` after the loop, the
+search has not finished yet; retrieve it again later with the same id. Do not
+combine `async` with `no_cache`, and do not use `async` on accounts with
+[Ludicrous Speed](https://serpapi.com/plan) enabled.
 
 ## Examples
 
@@ -329,15 +346,15 @@ The same engines and parameters as the
 Each engine names its query parameter differently (`q`, `p`, `text`, `query`,
 `_nkw`, `search_query`); see the engine's documentation for the full list.
 
-## Supported C++ version.
-C++ versions validated by Github Actions:
- - C++17
- - C++20
+## Supported C++ versions
+C++ versions and platforms validated by GitHub Actions:
+ - C++17 on Ubuntu (gcc) and macOS (Apple clang)
+ - C++20 on Ubuntu (gcc)
 
 To build with another standard locally: `CPP_STD=c++20 rake coverage`.
 
-## Change logs
- * [2026-10-05] 1.0.0 First stable release: the public API and ABI are stable for all 1.x releases. Throw `serpapi::Error` whenever the response contains an error, independent of the HTTP status; call parameters override client defaults; public header no longer depends on libcurl; bundle a CVE-patched RapidJSON (CVE-2024-38517, CVE-2024-39684); snake_case API (`set_timeout()`, `http_code()`); versioned shared library (`soversion` 1); add `md()` alias; C++17 and C++20 tested in CI. **Breaking:** see [Migrating from 0.5 to 1.0](MIGRATION.md).
+## Changelog
+ * [2026-10-05] 1.0.0 First stable release: the public API and ABI are stable for all 1.x releases. Throw `serpapi::Error` whenever the response contains an error, independent of the HTTP status; call parameters override client defaults; public header no longer depends on libcurl; bundle a CVE-patched RapidJSON (CVE-2024-38517, CVE-2024-39684); snake_case API (`set_timeout()`, `http_code()`); versioned shared library (`soversion` 1) that exports only `Client` and `Error`; connects over IPv6 when available (was IPv4 only); compile-time check that applications use the same RapidJSON as the library; add `md()` alias; C++17 and C++20 tested in CI. **Breaking:** see [Migrating from 0.5 to 1.0](MIGRATION.md).
  * [2026-08-16] 0.5.0 Add markdown() support via the output=md format.
  * [2026-06-26] 0.4.1 Exclude test dependencies from release build.
  * [2026-06-08] 0.4.0 Add unit tests and improve error handling.
@@ -357,7 +374,7 @@ To build with another standard locally: `CPP_STD=c++20 rake coverage`.
 ### Code quality expectations
  - 0 lint offense: `rake lint`
  - 100% tests passing: `rake test`
- - 100% code coverage: `rake coverage`
+ - 100% of reachable lines covered: `rake coverage` (lines that need fault injection are listed in [Latest coverage report](#latest-coverage-report))
 
 ### Code coverage
 
@@ -423,9 +440,9 @@ The remaining uncovered lines need fault injection to reach:
 |----------|------|-----------------------|
 | `callback.cpp:15-17` | `std::string::append` throws `bad_alloc` | Requires memory exhaustion. |
 | `serpapi.cpp:41` | `curl_easy_init()` returns null | Requires libcurl to fail allocating a handle. |
-| `serpapi.cpp:117-118` | 2xx response whose body is not valid JSON | SerpApi always returns JSON for `output=json`. |
+| `serpapi.cpp:118-119` | 2xx response whose body is not valid JSON | SerpApi always returns JSON for `output=json`. |
 
-## Design : UML diagram
+## Design: UML diagram
 ### Class diagram
 ```mermaid
 classDiagram
@@ -451,21 +468,22 @@ classDiagram
 ```
 
 ## Continuous integration
-We use GitHub Actions for continuous integration.
 
-Set your secret API key in your shell before running tests.
-```bash
-export SERPAPI_KEY="your_secret_key"
-```
+GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs on every push and
+pull request to `main`, in three jobs: Ubuntu with C++17, Ubuntu with C++20,
+and macOS (Apple silicon) with C++17. Each job installs the dependencies
+(`rake install:linux` or `rake install:apple`) and runs `rake coverage`. The
+Ubuntu C++17 job also runs `rake lint` and is the only one given the
+repository secret `SERPAPI_KEY`, so the live-API tests run, and use the API,
+once per CI run.
 
-Check code quality using Lint.
-```bash
-rake lint
-```
+Run the same checks locally:
 
-Run tests.
 ```bash
+export SERPAPI_KEY="your_secret_key"   # optional; live-API tests are skipped without it
+rake setup                              # configure build/ with tests enabled (once)
 rake test
+rake lint
 ```
 
 ## Run with Docker
@@ -491,7 +509,7 @@ docker run --rm -it -e SERPAPI_KEY -v "$PWD":/src:ro ubuntu:24.04 bash -c '
  - Build: `rake build`
  - Run examples: `rake example` (all) or `rake example[bing_example]` (one); see [Examples](#examples)
  - Generate API documentation into `docs/` (requires Doxygen): `rake doc`
- - Full check before a release (clean build, tests with coverage, lint, examples): `rake`
+ - Full check before a release (clean build, tests with coverage, lint, `google_example`, demo): `rake`
 
 ## References
 - https://formulae.brew.sh/formula/googletest

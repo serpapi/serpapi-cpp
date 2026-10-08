@@ -3,11 +3,10 @@ project('serpapi', 'cpp',
   default_options : ['warning_level=3', 'cpp_std=c++17'])
 
 compiler = meson.get_compiler('cpp')
-add_project_arguments(['-Wno-deprecated-declarations', '-funsigned-char'], language : 'cpp')
 # Single source of truth for the version reported in every request (source=serpapi-cpp:<version>).
 add_project_arguments('-DSERPAPI_VERSION="@0@"'.format(meson.project_version()), language : 'cpp')
 
-incdirs = include_directories('src')
+incdirs = include_directories('src', '.')
 
 # RapidJSON types appear in the public API, so the library and everything that
 # includes serpapi.hpp must use the same RapidJSON headers.
@@ -16,6 +15,26 @@ if get_option('system_rapidjson')
 else
   rapidjson_dep = subproject('rapidjson', default_options : ['install_headers=true']).get_variable('rapidjson_dep')
 endif
+
+# Record RapidJSON's object layout so serpapi.hpp can reject, at compile time,
+# code that sees different RapidJSON headers than the library was built with
+# (e.g. a system RapidJSON 1.1.0 earlier on the include path), which would
+# otherwise crash at run time.
+rapidjson_prefix = '#include <rapidjson/document.h>'
+config = configuration_data()
+config.set('SERPAPI_RAPIDJSON_VALUE_SIZE',
+           compiler.sizeof('rapidjson::Value', prefix : rapidjson_prefix, dependencies : rapidjson_dep))
+config.set('SERPAPI_RAPIDJSON_DOCUMENT_SIZE',
+           compiler.sizeof('rapidjson::Document', prefix : rapidjson_prefix, dependencies : rapidjson_dep))
+config.set('SERPAPI_RAPIDJSON_ALLOCATOR_SIZE',
+           compiler.sizeof('rapidjson::MemoryPoolAllocator<>', prefix : rapidjson_prefix, dependencies : rapidjson_dep))
+foreach name : ['SERPAPI_RAPIDJSON_VALUE_SIZE', 'SERPAPI_RAPIDJSON_DOCUMENT_SIZE', 'SERPAPI_RAPIDJSON_ALLOCATOR_SIZE']
+  if config.get(name) <= 0
+    error('Could not determine @0@ from the RapidJSON headers'.format(name))
+  endif
+endforeach
+serpapi_config = configure_file(output : 'serpapi_config.hpp', configuration : config)
+install_headers(serpapi_config, subdir : 'serpapi')
 
 libserpapi = library('serpapi', 
                         [
@@ -33,6 +52,8 @@ libserpapi = library('serpapi',
                         # so the loader rejects mismatched binaries instead of failing on a symbol.
                         version : meson.project_version(),
                         soversion : '1',
+                        # Export only what serpapi.hpp marks SERPAPI_API (Client, Error).
+                        gnu_symbol_visibility : 'hidden',
                         install : true)
 
 install_headers('src/serpapi.hpp', subdir : 'serpapi')
@@ -56,10 +77,12 @@ subdir('demo')
 subdir('example')
 
 if get_option('tests')
-  test_src = files('test/test_main.cpp', 'test/test_serpapi.cpp', 'test/test_unit.cpp')
+  # Internal helpers are not exported by the library, so the unit tests compile them directly.
+  test_src = files('test/test_main.cpp', 'test/test_serpapi.cpp', 'test/test_unit.cpp',
+                   'src/callback.cpp', 'src/query.cpp', 'src/response.cpp')
   test_deps = [
     libserpapi_dep,
-    dependency('gtest'),
+    dependency('gtest', include_type : 'system'),
     dependency('threads')
   ]
 

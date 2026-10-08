@@ -5,10 +5,31 @@
 #define SERPAPI_HPP
 
 #include "rapidjson/document.h"
+#include "serpapi_config.hpp"
 #include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
+
+// rapidjson::Document is part of this API, so code that includes this header
+// must see the same RapidJSON as the compiled library; a different version
+// (e.g. a system RapidJSON 1.1.0 found first on the include path) compiles but
+// crashes at run time. Fix: put serpapi's include directory first, as
+// `pkg-config --cflags serpapi` does, and include serpapi.hpp before any
+// other RapidJSON header.
+static_assert(sizeof(rapidjson::Value) == SERPAPI_RAPIDJSON_VALUE_SIZE &&
+                  sizeof(rapidjson::Document) == SERPAPI_RAPIDJSON_DOCUMENT_SIZE &&
+                  sizeof(rapidjson::MemoryPoolAllocator<>) == SERPAPI_RAPIDJSON_ALLOCATOR_SIZE,
+              "serpapi.hpp sees different RapidJSON headers than libserpapi was built with; "
+              "put serpapi's include directory first and include serpapi.hpp before other RapidJSON headers");
+
+// The library is built with hidden symbol visibility; only what is marked
+// SERPAPI_API is exported, so internal helpers stay out of the ABI.
+#if defined(__GNUC__) || defined(__clang__)
+#define SERPAPI_API __attribute__((visibility("default")))
+#else
+#define SERPAPI_API
+#endif
 
 namespace serpapi {
 
@@ -30,9 +51,15 @@ using Parameters = std::map<std::string, std::string>;
  * cause() is the preferred accessor for the failure description; what() returns
  * the same text and remains available for generic std::exception handlers.
  */
-class Error : public std::runtime_error {
+class SERPAPI_API Error : public std::runtime_error {
 public:
   explicit Error(const std::string &message, long http_code = 0, std::string payload = "");
+  Error(const Error &) noexcept = default;
+  Error &operator=(const Error &) noexcept = default;
+  // Defined in the library so Error's vtable and typeinfo are emitted and
+  // exported there; catch (const serpapi::Error &) then works across the
+  // shared-library boundary on every platform.
+  ~Error() override;
 
   /// Failure description: SerpApi's error message, or e.g. "CURL error: ..." for client-side failures.
   const std::string &cause() const noexcept;
@@ -63,7 +90,7 @@ private:
  * Client is copyable and movable. A moved-from Client may only be assigned to
  * or destroyed.
  */
-class Client {
+class SERPAPI_API Client {
 public:
   /**
    * @brief Constructs a client with default parameters merged into every request.

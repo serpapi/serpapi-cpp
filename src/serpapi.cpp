@@ -43,7 +43,6 @@ Response httpGet(const std::string &url, long timeout) {
 
   Response response;
   curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
-  curl_easy_setopt(curl.get(), CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
   curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, timeout);
   curl_easy_setopt(curl.get(), CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(curl.get(), CURLOPT_SSL_VERIFYHOST, 2L);
@@ -71,6 +70,8 @@ struct Error::Detail {
 Error::Error(const std::string &message, long http_code, std::string payload)
     : std::runtime_error(message),
       detail_(std::make_shared<const Detail>(Detail{message, http_code, std::move(payload)})) {}
+
+Error::~Error() = default;
 
 const std::string &Error::cause() const noexcept { return detail_->cause; }
 long Error::http_code() const noexcept { return detail_->http_code; }

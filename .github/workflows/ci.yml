@@ -8,15 +8,23 @@ on:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} (${{ matrix.cpp_std }})
+    runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        cpp_std: [ 'c++17', 'c++20' ]
-
-    name: build (${{ matrix.cpp_std }})
+        include:
+          # Live-API tests and lint run once per workflow, on this job, which
+          # is also the coverage of record. The other jobs skip the live tests
+          # so a CI run uses the API only once.
+          - os: ubuntu-latest
+            cpp_std: c++17
+            primary: true
+          - os: ubuntu-latest
+            cpp_std: c++20
+          - os: macos-latest
+            cpp_std: c++17
 
     steps:
     - uses: actions/checkout@v7
@@ -24,12 +32,20 @@ jobs:
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.4'
-    - name: Install dependencies
+    - name: Install dependencies (Linux)
+      if: runner.os == 'Linux'
       run: rake install:linux
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: rake install:apple
+      env:
+        HOMEBREW_NO_AUTO_UPDATE: '1'
+        HOMEBREW_NO_INSTALL_CLEANUP: '1'
     - name: Run tests with coverage
       run: rake coverage
       env:
         CPP_STD: ${{ matrix.cpp_std }}
-        # Live-API tests run once per workflow, on the C++17 leg, which is also the
-        # coverage of record. The C++20 leg skips them to avoid doubling API usage.
-        SERPAPI_KEY: ${{ matrix.cpp_std == 'c++17' && secrets.SERPAPI_KEY || '' }}
+        SERPAPI_KEY: ${{ matrix.primary && secrets.SERPAPI_KEY || '' }}
+    - name: Lint
+      if: matrix.primary
+      run: rake lint

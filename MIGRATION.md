@@ -86,7 +86,7 @@ If your code calls libcurl directly and relied on getting its header through
 |-----|-----|
 | `Client::setTimeout(int)` | Renamed to `Client::set_timeout(int)`; the public API uses snake_case throughout. |
 | `serpapi::GetResponse` | Removed. Use `serpapi::Error::http_code()` and `payload()`. |
-| `<serpapi/callback.hpp>` and `serpapi::callback()` | No longer installed. It was the internal libcurl write callback; there is no replacement. |
+| `<serpapi/callback.hpp>` and `serpapi::callback()` | No longer installed or exported. It was the internal libcurl write callback; there is no replacement. The shared library now exports only `serpapi::Client` and `serpapi::Error`. |
 | Include guard macro `SERPAPI` | Renamed to `SERPAPI_HPP`. This only matters if your code tested `#ifdef SERPAPI`. |
 
 ## 5. RapidJSON is bundled
@@ -100,6 +100,8 @@ distribution, use `-Dsystem_rapidjson=true` to keep the previous behaviour.
 
 ## 6. Additions (no action required)
 
+ - Connections use IPv6 when the network supports it; 0.5 forced IPv4, which failed on IPv6-only networks.
+ - `<serpapi.hpp>` checks at compile time that your code sees the same RapidJSON as the library, turning a run-time crash into a compile error (see the README's Installation section).
  - `serpapi::Parameters` is an alias for `std::map<std::string, std::string>`; existing `std::map` code compiles unchanged.
  - `serpapi::Client client;` constructs a client with no default parameters.
  - `Client` is copyable and movable; copies are independent.

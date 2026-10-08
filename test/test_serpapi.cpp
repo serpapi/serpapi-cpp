@@ -1,153 +1,81 @@
-#include "../src/callback.hpp"
+// Tests against the live SerpApi service.
 #include "../src/serpapi.hpp"
 #include <gtest/gtest.h>
+#include <cstdlib>
+#include <string>
 
-using namespace std;
-
-TEST(client, search) {
-  const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr || *env_p == '\0') {
-    GTEST_SKIP() << "SERPAPI_KEY not set";
+// Skips the test when SERPAPI_KEY is unset or empty; otherwise provides a
+// Google client with that key.
+class LiveApi : public ::testing::Test {
+protected:
+  void SetUp() override {
+    const char *key = std::getenv("SERPAPI_KEY");
+    if (key == nullptr || *key == '\0') {
+      GTEST_SKIP() << "SERPAPI_KEY not set";
+    }
+    api_key_ = key;
   }
-  std::string apiKey(env_p);
-  std::map<string, string> default_parameter;
-  default_parameter["api_key"] = apiKey;
-  default_parameter["engine"] = "google";
 
-  // using namespace serpapi;
-  serpapi::Client client(default_parameter);
+  serpapi::Client google() const { return serpapi::Client({{"api_key", api_key_}, {"engine", "google"}}); }
 
-  // execute search
-  map<string, string> parameter;
-  parameter["q"] = "coffee";
-  parameter["location"] = "Austin,TX";
+  std::string api_key_;
+};
 
-  rapidjson::Document d = client.search(parameter);
+TEST_F(LiveApi, search) {
+  rapidjson::Document d = google().search({{"q", "coffee"}, {"location", "Austin,TX"}});
 
-  ASSERT_FALSE(d.HasMember("error"));
   ASSERT_TRUE(d.HasMember("search_metadata"));
   ASSERT_EQ(d["search_metadata"]["status"], "Success");
 }
 
+// No api_key needed, so this test always runs.
 TEST(client, location) {
-  std::map<string, string> default_parameter = {};
-  serpapi::Client client(default_parameter);
-
-  map<string, string> parameter;
-  parameter["limit"] = "3";
-  parameter["q"] = "Austin";
-  rapidjson::Document doc = client.location(parameter);
+  serpapi::Client client;
+  rapidjson::Document doc = client.location({{"q", "Austin"}, {"limit", "3"}});
   ASSERT_TRUE(doc.IsArray());
   ASSERT_GT(doc.GetArray().Size(), 1u);
 }
 
-// fetch account information
-TEST(client, account) {
-  const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr || *env_p == '\0') {
-    GTEST_SKIP() << "SERPAPI_KEY not set";
-  }
-  std::string apiKey(env_p);
-  std::map<string, string> default_parameter;
-  default_parameter["api_key"] = apiKey;
-  serpapi::Client client(default_parameter);
-
-  map<string, string> parameter = {};
-  rapidjson::Document d = client.account(parameter);
-
-  ASSERT_FALSE(d.HasMember("error"));
+TEST_F(LiveApi, account) {
+  rapidjson::Document d = serpapi::Client({{"api_key", api_key_}}).account();
   ASSERT_TRUE(d.HasMember("account_id"));
 }
 
-TEST(client, search_archive) {
-  const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr || *env_p == '\0') {
-    GTEST_SKIP() << "SERPAPI_KEY not set";
-  }
-  std::string apiKey(env_p);
-  std::map<string, string> default_parameter;
-  default_parameter["api_key"] = apiKey;
-  default_parameter["engine"] = "google";
+TEST_F(LiveApi, search_archive) {
+  serpapi::Client client = google();
+  rapidjson::Document d = client.search({{"q", "coffee"}, {"location", "Austin,TX"}});
 
-  // using namespace serpapi;
-  serpapi::Client client(default_parameter);
-
-  // execute search
-  map<string, string> parameter;
-  parameter["q"] = "coffee";
-  parameter["location"] = "Austin,TX";
-
-  rapidjson::Document d = client.search(parameter);
-
-  ASSERT_FALSE(d.HasMember("error"));
   ASSERT_TRUE(d.HasMember("search_metadata"));
   ASSERT_TRUE(d["search_metadata"].HasMember("id"));
-  ASSERT_EQ(d["search_metadata"]["status"], "Success");
-
   ASSERT_TRUE(d["search_metadata"]["id"].IsString());
+  ASSERT_EQ(d["search_metadata"]["status"], "Success");
+  const std::string id = d["search_metadata"]["id"].GetString();
 
-  std::string id = d["search_metadata"]["id"].GetString();
-  rapidjson::Document d2 = client.search_archive(id);
-
-  ASSERT_FALSE(d2.HasMember("error"));
-  ASSERT_TRUE(d2.HasMember("search_metadata"));
-  ASSERT_TRUE(d2["search_metadata"].HasMember("id"));
-  std::string id_ = d2["search_metadata"]["id"].GetString();
-  ASSERT_EQ(id_, id);
+  rapidjson::Document archived = client.search_archive(id);
+  ASSERT_TRUE(archived.HasMember("search_metadata"));
+  ASSERT_TRUE(archived["search_metadata"].HasMember("id"));
+  EXPECT_EQ(std::string(archived["search_metadata"]["id"].GetString()), id);
 }
 
-TEST(client, html) {
-  const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr || *env_p == '\0') {
-    GTEST_SKIP() << "SERPAPI_KEY not set";
-  }
-  std::string apiKey(env_p);
-  std::map<string, string> default_parameter;
-  default_parameter["api_key"] = apiKey;
-  default_parameter["engine"] = "google";
-
-  serpapi::Client client(default_parameter);
-
-  map<string, string> parameter;
-  parameter["q"] = "coffee";
-
-  std::string html = client.html(parameter);
+TEST_F(LiveApi, html) {
+  std::string html = google().html({{"q", "coffee"}});
   ASSERT_FALSE(html.empty());
-  ASSERT_TRUE(html.find("coffee") != std::string::npos);
+  EXPECT_NE(html.find("coffee"), std::string::npos);
 }
 
-TEST(client, markdown) {
-  const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr || *env_p == '\0') {
-    GTEST_SKIP() << "SERPAPI_KEY not set";
-  }
-  std::string apiKey(env_p);
-  std::map<string, string> default_parameter;
-  default_parameter["api_key"] = apiKey;
-  default_parameter["engine"] = "google";
-
-  serpapi::Client client(default_parameter);
-
-  map<string, string> parameter;
-  parameter["q"] = "coffee";
-
-  std::string markdown = client.markdown(parameter);
+TEST_F(LiveApi, markdown) {
+  std::string markdown = google().markdown({{"q", "coffee"}});
   ASSERT_FALSE(markdown.empty());
-  ASSERT_TRUE(markdown.find("coffee") != std::string::npos);
+  EXPECT_NE(markdown.find("coffee"), std::string::npos);
 }
 
 // A search with no results returns HTTP 200 with an error in the body; it must
 // still throw, independent of the HTTP status.
 static const char *kNoResultsQuery = "site:zxqvjkwplmrtnbhgf.invalid qqzzxxkkvvwwjjhh";
 
-TEST(client, search_no_results_throws_with_http_200) {
-  const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr || *env_p == '\0') {
-    GTEST_SKIP() << "SERPAPI_KEY not set";
-  }
-  serpapi::Client client({{"api_key", env_p}, {"engine", "google"}});
+TEST_F(LiveApi, search_no_results_throws_with_http_200) {
   try {
-    client.search({{"q", kNoResultsQuery}});
+    google().search({{"q", kNoResultsQuery}});
     FAIL() << "expected serpapi::Error";
   } catch (const serpapi::Error &e) {
     EXPECT_EQ(e.http_code(), 200);
@@ -156,14 +84,9 @@ TEST(client, search_no_results_throws_with_http_200) {
   }
 }
 
-TEST(client, markdown_no_results_throws_with_http_200) {
-  const char *env_p = std::getenv("SERPAPI_KEY");
-  if (env_p == nullptr || *env_p == '\0') {
-    GTEST_SKIP() << "SERPAPI_KEY not set";
-  }
-  serpapi::Client client({{"api_key", env_p}, {"engine", "google"}});
+TEST_F(LiveApi, markdown_no_results_throws_with_http_200) {
   try {
-    client.markdown({{"q", kNoResultsQuery}});
+    google().markdown({{"q", kNoResultsQuery}});
     FAIL() << "expected serpapi::Error";
   } catch (const serpapi::Error &e) {
     EXPECT_EQ(e.http_code(), 200);

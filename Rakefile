@@ -128,6 +128,19 @@ task release: [:default] do
 
   puts "Releasing #{tag}..."
 
+  # The README install link and changelog must name this version.
+  readme = File.read('README.md')
+  missing = []
+  missing << "install link tags/#{tag}.tar.gz" unless readme.include?("tags/#{tag}.tar.gz")
+  missing << "changelog entry for #{version}" unless readme.match?(/^ \* \[\d{4}-\d{2}-\d{2}\] #{Regexp.escape(version)} /)
+  abort "README.md is missing the #{missing.join(' and ')}." unless missing.empty?
+
+  require 'date'
+  changelog_date = readme[/^ \* \[(\d{4}-\d{2}-\d{2})\] #{Regexp.escape(version)} /, 1]
+  if changelog_date != Date.today.iso8601
+    puts "WARNING: the README changelog dates #{version} #{changelog_date}, today is #{Date.today.iso8601}."
+  end
+
   unless `git status --porcelain`.strip.empty?
     abort "Working directory is not clean. Please commit or stash changes."
   end
