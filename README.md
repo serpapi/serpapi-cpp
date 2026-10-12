@@ -1,8 +1,6 @@
-<div align="center">
-<h1 align="center">SerpApi C++ Library</h1>
+# SerpApi C++ Library
 
 [![SerpApi C++](https://github.com/serpapi/serpapi-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/serpapi/serpapi-cpp/actions/workflows/ci.yml)
-</div>
 
 Integrate search data into your C++ application. This library is the official wrapper for [SerpApi](https://serpapi.com).
 
@@ -22,7 +20,7 @@ brew install rapidjson
 sudo apt update && sudo apt install -y rapidjson-dev
 ```
 
-### Installation from Release
+### Installation
 
 Download and extract the latest release:
 
@@ -36,7 +34,7 @@ sudo meson install -C build
 
 Tests are disabled by default for release builds. To build and run tests with Meson, install GoogleTest and configure with `-Dtests=true`.
 
-### Meson Dependency
+### Meson dependency
 
 Add the dependency to your `meson.build`:
 
@@ -53,7 +51,7 @@ serpapi_dep = serpapi_proj.get_variable('libserpapi_dep')
 
 [SerpApi C++](https://github.com/serpapi/serpapi-cpp)
 
-## Simple Usage
+## Quick start
 
 ```cpp
 #include <iostream>
@@ -91,7 +89,7 @@ int main() {
 
 This example runs a search for "coffee" on Google. It then returns the results as a RapidJSON Document. See the [playground](https://serpapi.com/playground) to generate your own code, or check out our [local examples](example/).
 
-## Advanced Usage
+## Advanced usage
 ### Search API
 ```cpp
 #include <serpapi.hpp>
@@ -180,7 +178,7 @@ Search API features non-blocking search using the option: `async=true`.
  - Non-blocking - async=true - a single parent process can handle unlimited concurrent searches.
  - Blocking - async=false - processes must wait for the HTTP response.
 
-### Example: Asynchronous searches
+### Asynchronous searches example
 
 ```cpp
 #include <serpapi.hpp>
@@ -203,12 +201,13 @@ int main() {
 }
 ```
 
-## Supported C++ version.
+## Supported C++ versions
+
 C++ versions validated by Github Actions:
  - C++17
  - C++20
 
-## Change logs
+## Change log
  * [2026-08-16] 0.5.0 Add markdown() support via the output=md format.
  * [2026-06-26] 0.4.1 Exclude test dependencies from release build.
  * [2026-06-08] 0.4.0 Add unit tests and improve error handling.
@@ -216,7 +215,7 @@ C++ versions validated by Github Actions:
  * [2026-01-06] 0.2.0 Release package with meson build system.
  * [2023-02-20] 0.1.0 Full API support
 
-## Developer Guide
+## Developer guide
 ### Key goals
  - Brand centric instead of search engine based
  - Simple HTTP client (lightweight, reduced dependency)
@@ -245,7 +244,7 @@ Generated with `rake coverage` (requires `SERPAPI_KEY` set to exercise the live 
  - functions: 100.0% (15/15)
  - branches: 45.9% (79/172)
 
-## Design : UML diagram
+## Design: UML diagram
 ### Class diagram
 ```mermaid
 classDiagram
