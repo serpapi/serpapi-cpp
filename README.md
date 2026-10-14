@@ -1,8 +1,6 @@
-<div align="center">
-<h1 align="center">SerpApi C++ Library</h1>
+# SerpApi C++ Library
 
 [![SerpApi C++](https://github.com/serpapi/serpapi-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/serpapi/serpapi-cpp/actions/workflows/ci.yml)
-</div>
 
 Integrate search data into your C++ application. This library is the official wrapper for [SerpApi](https://serpapi.com).
 
@@ -40,7 +38,7 @@ directory first, as `pkg-config --cflags serpapi` does, and include
 `<serpapi.hpp>` before any other RapidJSON header. Without this check, such a
 program would compile and then crash at run time.
 
-### Installation from Release
+### Installation
 
 Download and extract the latest release:
 
@@ -54,7 +52,7 @@ sudo meson install -C build
 
 Tests are not built by default. To build and run them, install GoogleTest and configure with `-Dtests=true`.
 
-### Meson Dependency
+### Meson dependency
 
 Add the dependency to your `meson.build`. With `fallback`, Meson uses an
 installed serpapi if pkg-config finds one, and otherwise builds it from
@@ -66,7 +64,7 @@ serpapi_dep = dependency('serpapi', fallback : ['serpapi', 'libserpapi_dep'])
 
 [SerpApi C++](https://github.com/serpapi/serpapi-cpp)
 
-## Simple Usage
+## Quick start
 
 ```cpp
 #include <cstdlib>
@@ -104,7 +102,7 @@ any error throws `serpapi::Error` (see [Error handling](#error-handling)). See
 the [playground](https://serpapi.com/playground) to generate your own code, or
 the [examples](#examples).
 
-## Advanced Usage
+## Advanced usage
 ### Search API
 ```cpp
 #include <serpapi.hpp>
@@ -362,7 +360,7 @@ To build with another standard locally: `CPP_STD=c++20 rake coverage`.
  * [2026-01-06] 0.2.0 Release package with meson build system.
  * [2023-02-20] 0.1.0 Full API support
 
-## Developer Guide
+## Developer guide
 ### Key goals
  - Brand centric instead of search engine based
  - Simple HTTP client (lightweight, reduced dependency)
