@@ -124,6 +124,15 @@ rapidjson::Document json(const Settings &impl, const std::string &uri,
   return d;
 }
 
+std::string markdownBody(const Settings &impl, const std::string &uri, const Parameters &parameter) {
+  long http_code = 0;
+  std::string payload = request(impl, uri, "md", parameter, &http_code);
+  if (auto message = markdownError(payload)) {
+    throw Error(*message, http_code, std::move(payload));
+  }
+  return payload;
+}
+
 } // namespace
 
 struct Client::Impl : detail::Settings {};
@@ -149,12 +158,7 @@ std::string Client::html(const Parameters &parameter) const {
 }
 
 std::string Client::markdown(const Parameters &parameter) const {
-  long http_code = 0;
-  std::string payload = request(*impl_, "/search", "md", parameter, &http_code);
-  if (auto message = markdownError(payload)) {
-    throw Error(*message, http_code, std::move(payload));
-  }
-  return payload;
+  return markdownBody(*impl_, "/search", parameter);
 }
 
 rapidjson::Document Client::search(const Parameters &parameter) const {
@@ -163,6 +167,10 @@ rapidjson::Document Client::search(const Parameters &parameter) const {
 
 rapidjson::Document Client::search_archive(const std::string &search_id) const {
   return json(*impl_, "/searches/" + percentEncode(search_id) + ".json", {});
+}
+
+std::string Client::search_archive_md(const std::string &search_id) const {
+  return markdownBody(*impl_, "/searches/" + percentEncode(search_id) + ".md", {});
 }
 
 rapidjson::Document Client::account(const Parameters &parameter) const {

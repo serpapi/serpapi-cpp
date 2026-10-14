@@ -57,6 +57,17 @@ TEST_F(LiveApi, search_archive) {
   EXPECT_EQ(std::string(archived["search_metadata"]["id"].GetString()), id);
 }
 
+TEST_F(LiveApi, search_archive_md) {
+  serpapi::Client client = google();
+  rapidjson::Document d = client.search({{"q", "coffee"}, {"location", "Austin,TX"}});
+  ASSERT_TRUE(d.HasMember("search_metadata"));
+  const std::string id = d["search_metadata"]["id"].GetString();
+
+  std::string markdown = client.search_archive_md(id);
+  ASSERT_FALSE(markdown.empty());
+  EXPECT_NE(markdown.find(id), std::string::npos);
+}
+
 TEST_F(LiveApi, html) {
   std::string html = google().html({{"q", "coffee"}});
   ASSERT_FALSE(html.empty());

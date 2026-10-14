@@ -107,6 +107,7 @@ distribution, use `-Dsystem_rapidjson=true` to keep the previous behaviour.
  - `Client` is copyable and movable; copies are independent.
  - Request methods are `const`. They can be called on a `const Client &` and concurrently from several threads on one instance. `set_timeout()` is not synchronized and must not run while requests are in flight.
  - `md()` is an alias for `markdown()`.
+ - `search_archive_md()` retrieves an archived search as Markdown.
  - `search_archive()` percent-encodes the search id. Ids taken from `search_metadata.id` are unaffected.
 
 ## Checklist

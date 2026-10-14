@@ -105,6 +105,11 @@ TEST(build_query, caller_cannot_override_output_or_source) {
   EXPECT_EQ(q, "output=html&source=s");
 }
 
+TEST(build_query, markdown_ignores_output_in_defaults_and_call) {
+  std::string q = serpapi::buildQuery({{"output", "json"}}, {{"output", "html"}}, "md", "s");
+  EXPECT_EQ(q, "output=md&source=s");
+}
+
 TEST(build_query, encodes_keys_and_values) {
   std::string q = serpapi::buildQuery({}, {{"q", "Austin & Texas"}}, "json", "s");
   EXPECT_NE(q.find("q=Austin%20%26%20Texas"), std::string::npos);
@@ -377,6 +382,7 @@ TEST_F(TransportFailure, every_method_throws_with_http_code_zero) {
   expectTransportError([&] { client.markdown({{"q", "coffee"}}); });
   expectTransportError([&] { client.md({{"q", "coffee"}}); });
   expectTransportError([&] { client.search_archive("abc"); });
+  expectTransportError([&] { client.search_archive_md("abc"); });
   expectTransportError([&] { client.account(); });
   expectTransportError([&] { client.location({{"q", "Austin"}}); });
 }

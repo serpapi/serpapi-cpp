@@ -127,7 +127,11 @@ public:
 
   /**
    * @brief Runs a search and returns the search engine result page as Markdown.
+   *
+   * The Markdown output is compact and suited to LLMs and AI agents.
+   * See https://serpapi.com/markdown-output
    * @param parameter Search parameters (e.g. q, location) merged with the client defaults.
+   * The output parameter is ignored: it is always set to md.
    * @return Raw Markdown response body.
    * @throws Error on transport failure, HTTP error status, or when the response
    *         contains an "## Error" section (any HTTP status).
@@ -145,6 +149,15 @@ public:
    *         contains an "error" member (any HTTP status).
    */
   rapidjson::Document search_archive(const std::string &search_id) const;
+
+  /**
+   * @brief Retrieves a previously run search from the search archive as Markdown.
+   * @param search_id Search id, as returned in search_metadata.id from a prior search().
+   * @return Raw Markdown response body.
+   * @throws Error on transport failure, HTTP error status, or when the response
+   *         contains an "## Error" section (any HTTP status).
+   */
+  std::string search_archive_md(const std::string &search_id) const;
 
   /**
    * @brief Retrieves account information (e.g. plan, usage) for the given api_key.
