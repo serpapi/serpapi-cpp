@@ -352,7 +352,7 @@ C++ versions and platforms validated by GitHub Actions:
 To build with another standard locally: `CPP_STD=c++20 rake coverage`.
 
 ## Changelog
- * [2026-10-05] 1.0.0 First stable release: the public API and ABI are stable for all 1.x releases. Throw `serpapi::Error` whenever the response contains an error, independent of the HTTP status; call parameters override client defaults; public header no longer depends on libcurl; bundle a CVE-patched RapidJSON (CVE-2024-38517, CVE-2024-39684); snake_case API (`set_timeout()`, `http_code()`); versioned shared library (`soversion` 1) that exports only `Client` and `Error`; connects over IPv6 when available (was IPv4 only); compile-time check that applications use the same RapidJSON as the library; add `md()` alias; C++17 and C++20 tested in CI. **Breaking:** see [Migrating from 0.5 to 1.0](MIGRATION.md).
+ * [2026-10-13] 1.0.0 First stable release: the public API and ABI are stable for all 1.x releases. Throw `serpapi::Error` whenever the response contains an error, independent of the HTTP status; call parameters override client defaults; public header no longer depends on libcurl; bundle a CVE-patched RapidJSON (CVE-2024-38517, CVE-2024-39684); snake_case API (`set_timeout()`, `http_code()`); versioned shared library (`soversion` 1) that exports only `Client` and `Error`; connects over IPv6 when available (was IPv4 only); compile-time check that applications use the same RapidJSON as the library; add `md()` alias; C++17 and C++20 tested in CI. **Breaking:** see [Migrating from 0.5 to 1.0](MIGRATION.md).
  * [2026-08-16] 0.5.0 Add markdown() support via the output=md format.
  * [2026-06-26] 0.4.1 Exclude test dependencies from release build.
  * [2026-06-08] 0.4.0 Add unit tests and improve error handling.
