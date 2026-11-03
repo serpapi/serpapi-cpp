@@ -82,11 +82,15 @@ TEST_F(LiveApi, markdown) {
 
 // A search with no results returns HTTP 200 with an error in the body; it must
 // still throw, independent of the HTTP status.
-static const char *kNoResultsQuery = "site:zxqvjkwplmrtnbhgf.invalid qqzzxxkkvvwwjjhh";
+// The quoted token never appears on example.com, and nfpr=1 stops Google from
+// auto-correcting it. Google ignores a site: filter on an unknown domain, so a
+// bare site:<random>.invalid query now returns results.
+static const serpapi::Parameters kNoResults = {
+    {"q", "\"zxqvjkwplmrtnbhgfqqzzxxkkvvwwjjhh\" site:example.com"}, {"nfpr", "1"}};
 
 TEST_F(LiveApi, search_no_results_throws_with_http_200) {
   try {
-    google().search({{"q", kNoResultsQuery}});
+    google().search(kNoResults);
     FAIL() << "expected serpapi::Error";
   } catch (const serpapi::Error &e) {
     EXPECT_EQ(e.http_code(), 200);
@@ -97,7 +101,7 @@ TEST_F(LiveApi, search_no_results_throws_with_http_200) {
 
 TEST_F(LiveApi, markdown_no_results_throws_with_http_200) {
   try {
-    google().markdown({{"q", kNoResultsQuery}});
+    google().markdown(kNoResults);
     FAIL() << "expected serpapi::Error";
   } catch (const serpapi::Error &e) {
     EXPECT_EQ(e.http_code(), 200);
