@@ -8,25 +8,25 @@ SerpApi supports Google, Google Maps, Google Shopping, Baidu, Yandex, Yahoo, eBa
 
 ## Installation
 
-C++17 and meson are required.
+A C++17 compiler, Meson, libcurl, and RapidJSON are required.
 
-Install RapidJSON before configuring the build:
+Install them before configuring the build:
 
 ```bash
 # macOS
-brew install rapidjson
+brew install meson ninja pkg-config curl rapidjson
 
 # Debian/Ubuntu Linux
-sudo apt update && sudo apt install -y rapidjson-dev
+sudo apt update && sudo apt install -y build-essential meson ninja-build pkg-config libcurl4-openssl-dev rapidjson-dev
 ```
 
-### Installation
+### Build and install
 
 Download and extract the latest release:
 
 ```bash
 curl -sL https://github.com/serpapi/serpapi-cpp/archive/refs/tags/v0.5.0.tar.gz | tar xz
-cd serpapi-0.5.0
+cd serpapi-cpp-0.5.0
 meson setup build
 meson compile -C build
 sudo meson install -C build
@@ -205,7 +205,6 @@ int main() {
 
 C++ versions validated by Github Actions:
  - C++17
- - C++20
 
 ## Change log
  * [2026-08-16] 0.5.0 Add markdown() support via the output=md format.
